@@ -1,0 +1,44 @@
+Fix:
+attack rni stability
+
+Canvas field?
+
+Bonuses: 
+  Supplies
+  Stat Growth?
+  Mob stat growth?
+  
+Map traits:
+
+  Particular stat more or less on mobs
+  More of mobs with particular stat
+  You gain more or less of particular stat
+  Solitary beasts - no bonuses from neighbors
+  Communal beasts - more bonuses from neighbors, less from self
+  Megabeasts - bigger beasts
+  Magma - everyone take damage during fight
+
+Passive abilities:
+  Dagger - 50% of blocked damage is still dealt
+  Whip - 50% bonus to damage past def, but enemy def is doubled
+  Rapier - if enemy attack is completely blocked, your next attack does double damage
+  Halberd - damage roll is either 0% or 200%
+  Javelins - deal free attack at the beginning of combat with double damage
+  Bag* - gain more loot
+  Branch - gain percentage of lost hp back
+  Dung* - draw counts as win, but you get half loot/xp
+  Poison - enemy loses some hp per their attack for each your attack done
+  Flamberge - enemy loses percentage of already lost hp
+  Teeth - get percentage of damage you deal
+  Warpaint - add percentage of lost hp to attacks
+
+Active abilities:
+  Diplomacy (Vasilisa) - remove any one enemy, get no loot/xp
+  Horror (Wolf) - if you defeat enemy, all neighbors flee
+  CQC (Captain) - do not attack. Responce with your attack to every enemy attack. If you deal damage, enemy attack is cancelled.
+  Immortality (Scarlett) - recover to full hp once per combat
+  Greed (Tomiko) - get triple loot/xp
+  Cleave (Vladimir) - enemy get much more stat bonuses from neighbors. If you win, defeat all neighbors too for full gold/xp
+  Teleport (Truth) - can attack any enemy. If you win, you can reach it's neighbors too.
+  Possess (Oleg) - if you win, you copy enemy stats
+  Massacre (Fenrir) - destroy all reached enemies, no loot/xp

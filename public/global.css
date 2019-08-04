@@ -1,0 +1,346 @@
+@keyframes blink {   /* назовём анимацию: "go-left-right" */
+  0% {
+    opacity: 0.8;
+  }
+  25% {
+    opacity: 0.75;
+  }
+  75% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}
+
+body {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+a[href] {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover[href] {
+  text-decoration: underline;
+}
+
+.main {
+  width: 100%;
+  margin-top: 55px;
+  margin-bottom: 10px;
+}
+
+.board-table {
+  border-spacing: 0px;
+  border-collapse: collapse;
+  margin: auto;
+  display: flex;
+  flex-flow: row wrap;
+}
+
+.bg-str {
+  background: red;
+}
+.bg-vit {
+  background: #0e0;
+}
+.bg-agi {
+  background: cyan;
+}
+.bg-def {
+  background: gold;
+}
+.bg-spd {
+  background: #33f;
+}
+.bg-int {
+  background: magenta;
+}
+.bg-none {
+  background: white;
+}
+
+.fg-str {
+  color: red;
+}
+.fg-vit {
+  color: #0b0;
+}
+.fg-agi {
+  color: #0bb;
+}
+.fg-def {
+  color: #fb0;
+}
+.fg-spd {
+  color: blue;
+}
+.fg-int {
+  color: magenta;
+}
+.fg-none {
+  color: white;
+}
+
+.cell {
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  box-sizing: border-box;  
+}
+
+.attackable {
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.dead {
+  background: white;
+  transition: 0.2s;
+}
+
+
+.aimed{
+  opacity:0.66;
+}
+
+.cell:not(.lightup) {
+  filter: brightness(0.5);
+}
+
+.header {
+  display: flex;
+  flex-flow: row;
+  justify-content: center;
+  align-content: stretch;
+  position: fixed;
+  padding: 0px;
+  font-size: 18pt;
+  width: 100%;
+  background: white;
+  box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+  margin: 0px;
+  left: 0px;
+  top: 0px;
+  cursor: default;
+  height: 36px;
+}
+
+.turns {
+  text-align: center;
+  font-size: 18pt;
+  vertical-align: middle;
+  line-height: 36px;
+  margin-right:5px;
+  margin-left:-100px;
+  width:300px;
+  text-align: right;
+  float:right;
+  overflow: visible;
+}
+
+.field-name {
+  font-size: 8pt;
+}
+
+.game {
+  display: flex;
+  flex-flow: row;
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.analysis {
+  position: fixed;
+  z-index: 2;
+  opacity: 0;
+  width: 300px;
+  pointer-events:none;
+}
+
+.analysis > div {
+  background: white;
+  box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
+  padding: 5px;
+  margin-bottom: 5px;  
+}
+
+.combat-log {
+  text-align: center;
+}
+
+.battle-outcome {
+  text-align: center;
+}
+
+.enemy {
+  text-align: center;
+  padding-bottom: 3px;
+}
+
+.attacking {
+  color: green;
+}
+
+.defending {
+  color: red;
+}
+
+.battle-win {
+  color: black;
+}
+
+.battle-lose {
+  color: red;
+}
+
+.battle-draw {
+  color: gold;
+}
+
+.shown {
+  opacity: 0.9;
+}
+
+button {
+  display: inline-block;
+  height: 32px;
+  padding: 0 20px;
+  color: #555;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: 0.1rem;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+:focus {
+  outline: none;
+}
+
+button:active {
+  background: #eee;
+}
+
+.header > button {
+  width: 120px;
+  margin-top: 3px;
+  margin-bottom: 3px;
+}
+
+.prota {
+  line-height: 36px;
+  margin: 0 20px;
+}
+
+.dropdown {
+  display: none;
+  overflow: hidden;
+  position: absolute;
+  flex-flow: column;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+  background: white;
+  box-shadow: 1px 4px 4px rgba(0, 0, 0, 0.4);
+}
+
+.hotkey::first-letter {
+  color:red;
+}
+
+.dropdown button::first-letter {
+  color:red;
+}
+
+div:hover > .dropdown {
+  display: flex;
+  opacity: 1;
+}
+
+.menu{
+  padding: 0px;
+}
+
+.menu button{
+  width: 150px;
+}
+
+button:hover {
+  box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.what {
+  margin-left: -450px;
+  position: fixed;
+  bottom: 0px;
+  margin-bottom: 50px;
+  left: 50%;
+  width: 900px;
+  z-index: 1;
+  background: white;
+  box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
+  padding: 10px;
+  display: flex;
+  flex-flow: column;
+}
+
+.what button{
+  margin: auto;
+  width: 96%;
+  margin-top:10px;
+}
+
+.page-title{
+  text-transform:uppercase;
+  font-size: 14px;
+  line-height: 36px;
+  letter-spacing: 0.5em;
+}
+
+.board-conf{
+  margin: 10px auto;
+  width: 800px;
+  text-align: center;
+}
+
+.files{
+  columns: 500px;
+}
+
+input{
+  width: 50px;
+  border: solid rgba(0,0,0,0.3);
+  border-width: 0px 0px 1px 0px;
+  font-size: 14pt;
+  text-align: right;
+}
+
+ul {
+  list-style-type: none;
+  margin: 0px;
+}
+
+.save{
+  width:400px;
+}
+
+
+.wip {
+  text-decoration:line-through;
+}
+
+.files button{
+  margin: 3px;
+}
