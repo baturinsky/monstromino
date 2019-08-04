@@ -75,7 +75,7 @@ a:hover[href] {
   color: #fb0;
 }
 .fg-spd {
-  color: blue;
+  color: #33f;
 }
 .fg-int {
   color: magenta;
@@ -343,4 +343,8 @@ ul {
 
 .files button{
   margin: 3px;
+}
+
+.cutoff{
+  filter: grayscale(100%) !important;
 }

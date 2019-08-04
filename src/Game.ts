@@ -192,12 +192,14 @@ export default class Game {
     this.updateStore();
   }
 
-  attackBeast(id: number) {
-    let beast = this.beasts[id];
+  attackBeastAt(cell: number) {
+    if(this.cutoff(cell))
+      return;
+    let beast = this.board[cell];
     if (!beast) return;
     if (beast.winnable) {
       beast.die();
-      this.turns.push(id);
+      this.turns.push(beast.id);
       this.updateStore();
       this.save(this.persist)
     }
@@ -219,8 +221,8 @@ export default class Game {
     this.play();
   }
 
-  logBeast(id: number) {    
-    let beast = this.beasts[id];
+  logBeastAt(cell: number) {    
+    let beast = this.board[cell];
     beast.updateBattler();
     console.log(beast);
   }
@@ -228,6 +230,11 @@ export default class Game {
   beast(id: number) {
     return this.beasts[id];
   }
+
+  beastAt(cell: number) {
+    return this.board[cell];
+  }
+
 
   updateStore() {
     this.updateBattles();
@@ -239,4 +246,9 @@ export default class Game {
     store.def.set(this.prota.def, null);
     store.spd.set(this.prota.spd, null);
   }
+
+  cutoff(i:number){
+    return i < this.width * Math.floor(this.turns.length / 3 - 5);
+  }
+
 }

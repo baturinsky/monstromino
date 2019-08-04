@@ -21,13 +21,18 @@
 
   let conf = Object.assign({}, $game.conf);
 
-  function clickCell(e) {
-    if (e.shiftKey) $game.logBeast(e.target.id);
-    else $game.attackBeast(e.target.id);
+  function clickCell(e) {    
+    if (e.shiftKey) $game.logBeastAt(e.target.id);
+    else $game.attackBeastAt(e.target.id);
   }
 
   function hoverCell(e) {
-    let beast = $game.beast(e.target.id);
+    let i = e.target.id;
+    if($game.cutoff(i)){
+      enemy = null;
+      return;
+    }
+    let beast = $game.beastAt(i);
     if (!beast || beast.dead) {
       enemy = null;
     } else {
@@ -44,8 +49,8 @@
 
   function moveAnalysis(x, y) {
     if (analysis) {
-      x = x>window.innerWidth - 380? x - 350:x + 100;
-      y = Math.min(y, window.innerHeight - analysis.offsetHeight - 50)
+      x = x > window.innerWidth - 380 ? x - 350 : x + 100;
+      y = Math.min(y, window.innerHeight - analysis.offsetHeight - 50);
 
       analysis.style.left = x + "px";
       analysis.style.top = y + "px";
@@ -215,8 +220,8 @@
 </div>
 
 {#if $what}
-  <div class="what">    
-    {@html {"board":lang.what, "files":lang.what_files}[page]}
+  <div class="what">
+    {@html { board: lang.what, files: lang.what_files }[page]}
     <div />
     <button on:click={e => ($what = false)}>Ok, got it</button>
   </div>
@@ -230,14 +235,12 @@
       on:mousemove={hoverCell}
       on:mousedown={clickCell}
       on:mouseleave={unHoverCell}>
-      {#each $game.board as beast}
+      {#each $game.board as beast, i}
         <div
-          id={beast.id}
+          id={i}
           class="cell bg-{beast.kind}
-          {beast.attackable && beast == enemy ? 'aimed' : ''}
           {beast.dead ? 'dead' : ''}
-          {beast.attackable ? 'attackable' : ''}
-          {beast.winnable || (beast.dead && beast.reached) ? 'lightup' : ''}
+          {$game.cutoff(i) ? 'cutoff' : [beast.attackable && beast == enemy ? 'aimed' : '', beast.attackable ? 'attackable' : '', beast.winnable || (beast.dead && beast.reached) ? 'lightup' : ''].join(' ')}
           " />
       {/each}
     </div>
@@ -257,11 +260,13 @@
       <ul>
         {#each [...$games].sort((a, b) =>
           Number(a[0].substr(5)) < Number(b[0].substr(5)) ? -1 : 1
-        ) as save}          
+        ) as save}
           <li>
             {#if save[0] != 'auto' && save[1] != '#NEW'}
               <button on:click={e => deleteSave(save[0])}>X</button>
-            {:else}<span>{save[0] == 'auto'?'AUTO':''}</span>{/if}
+            {:else}
+              <span>{save[0] == 'auto' ? 'AUTO' : ''}</span>
+            {/if}
             <button
               on:click={e => (save[1] == '#NEW' ? newSave(save[0]) : loadSave(save[0]))}
               class="save">
