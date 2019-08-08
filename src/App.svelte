@@ -1,14 +1,12 @@
 <script>
   import {
     games,
-    game,
-    turns,
-    cash,
-    str,
-    vit,
-    spd,
-    def,
+    debrief,
+    state,
+    conf,
+    board,
     what,
+    abridgedAnalysis,
     updateSaves
   } from "./store.js";
   import Game from "./Game";
@@ -16,24 +14,42 @@
   import Battler from "./Battler";
 
   let enemy;
-  let analysis;
   let page = "board";
+  let hovered;
+  let mousePosition = [0, 0];
+  export let game;
 
-  let conf = Object.assign({}, $game.conf);
+  let colors = game.colors;
+  let fg = {};
+  let bg = {};
+  for (let c in colors) {
+    fg[c] = "fg-" + colors[c];
+    bg[c] = "bg-" + colors[c];
+  }
 
-  function clickCell(e) {    
-    if (e.shiftKey) $game.logBeastAt(e.target.id);
-    else $game.attackBeastAt(e.target.id);
+  let custom = {};
+  const statsOrder = "str vit def spd".split(" ");
+
+  conf.subscribe(v => Object.assign(custom, v));
+
+  function clickCell(e) {
+    if (e.button != 0) return;
+    if (e.shiftKey) game.logBeastAt(e.target.id);
+    else game.attackBeastAt(e.target.id);
   }
 
   function hoverCell(e) {
-    let i = e.target.id;
-    if($game.cutoff(i)){
+    hovered = e.target.id;
+  }
+
+  function showInfo() {
+    let beast = game.beastAt(hovered);
+    hovered = null;
+    if (!beast) {
       enemy = null;
       return;
     }
-    let beast = $game.beastAt(i);
-    if (!beast || beast.dead) {
+    if (!beast || beast.resolved) {
       enemy = null;
     } else {
       beast.updateBattler();
@@ -42,46 +58,52 @@
   }
 
   function unHoverCell(e) {
-    enemy = null;
+    hovered = enemy = null;
+  }
+
+  function moveAnalysis(x, y) {
+    showInfo();
+  }
+
+  let analysis;
+  function analysisPosition() {
+    let [x, y] = mousePosition;
+    let width = analysis ? analysis.offsetWidth : 400;
+    let s = `left: ${
+      x > window.innerWidth - width - 50 ? x - width - 50 : x + 100
+    }px; top: ${Math.min(
+      y,
+      window.innerHeight - (analysis ? analysis.offsetHeight : 50) - 50
+    )}px`;
+    return s;
   }
 
   let moveTimeout;
 
-  function moveAnalysis(x, y) {
-    if (analysis) {
-      x = x > window.innerWidth - 380 ? x - 350 : x + 100;
-      y = Math.min(y, window.innerHeight - analysis.offsetHeight - 50);
-
-      analysis.style.left = x + "px";
-      analysis.style.top = y + "px";
-    }
-  }
-
   document.onmousemove = e => {
+    mousePosition = [e.x, e.y];
     let movement = Math.abs(e.movementX) + Math.abs(e.movementY);
-    if (movement < 9) moveAnalysis(e.x, e.y);
-    else {
+    showInfo();
+
+    if (movement > 4) {
       if (moveTimeout) clearTimeout(moveTimeout);
       moveTimeout = setTimeout(_ => {
-        moveAnalysis(e.x, e.y);
         moveTimeout = null;
-      }, 1);
+      }, 1000);
     }
   };
 
   function undo() {
-    $game.undo();
+    game.undo();
   }
 
   function reset() {
-    $game.reset();
+    game.reset();
   }
 
   let bigNumLetters = " K M B t q Q s S o n d U D T Qt Qd Sd St O N v c".split(
     " "
   );
-
-  console.log(bigNumLetters.join(" "));
 
   function bigNum(n) {
     let i;
@@ -89,17 +111,22 @@
     return Math.round(n) + bigNumLetters[i];
   }
 
+  function customize() {}
+
   function open(p) {
-    enemy = null;
+    hovered = enemy = null;
     page = p;
     if (p == "files") updateSaves();
   }
 
-  function playFromConf() {
-    for (let k in conf) conf[k] = +conf[k];
-    $game.config(conf);
-    $game.generate();
-    $game.play();
+  function goTo(params) {
+    window.location.search = "?" + new URLSearchParams(params).toString();
+  }
+
+  function playCustom() {
+    for (let k in custom) custom[k] = +custom[k];
+    game.start(custom);
+    goTo(custom);
   }
 
   function toggleWhat() {
@@ -108,18 +135,18 @@
 
   function deleteSave(id) {
     console.log("del", id);
-    $game.remove(id);
+    game.erase(id);
     updateSaves();
   }
 
   function loadSave(id) {
     console.log("load", id);
-    $game.load(id);
+    game.load(id);
     open("board");
   }
 
   function newSave(id) {
-    $game.save(id);
+    game.save(id);
     updateSaves();
     console.log("new", id);
   }
@@ -136,7 +163,7 @@
       case "KeyB":
         open("board");
         return;
-      case "KeyW":
+      case "KeyH":
         toggleWhat();
         return;
       case "KeyU":
@@ -148,32 +175,76 @@
 
 {#if enemy && enemy.battle && enemy.battler}
   <div
-    class="analysis {enemy && enemy.battle && !moveTimeout ? 'shown' : ''}"
-    bind:this={analysis}>
+    style={analysisPosition()}
+    bind:this={analysis}
+    class="analysis {!moveTimeout ? 'analysis-shown' : ''}">
 
-    <div class="enemy">
-      {#each Battler.statsOrder as field, i}
-        {@html i == 0 ? '' : '&nbsp;'}
-        <span class="fg-{field}">{bigNum(enemy.battler[field])}</span>
-      {/each}
-    </div>
+    {#if enemy.frozen}
+      <div class="enemy">
+        {@html lang.FROZEN}
+      </div>
+      <div class="combat-log">
+        {@html lang.tip_frozen}
+      </div>
+    {:else}
+      <div class="enemy">
+        {#each Battler.statsOrder as field, i}
+          {@html i == 0 ? '' : '&nbsp;'}
+          <span class="field-name">{$abridgedAnalysis ? '' : field}</span>
+          <span class={fg[field]}>{bigNum(enemy.battler[field])}</span>
+        {/each}
+      </div>
 
-    <div class="combat-log">
-      {#each enemy.battle.log as move}
-        <span class={move.a.isProto ? 'attacking' : 'defending'}>
-          {#if move.damage > 0}{bigNum(move.hp)}{:else}={/if}
-        </span>
-        <span />
-      {/each}
-    </div>
+      <div class="combat-log">
+        {#each enemy.battle.log as move}
+          {#if $abridgedAnalysis}
+            <span class={move.a.isProto ? 'attacking' : 'defending'}>
+              {#if move.damage > 0}{bigNum(move.hp)}{:else}={/if}
+            </span>
+          {:else}
+            <div class="complete-log">
+              <nobr>
+                <span class={move.a.isProto ? 'attacking' : 'defending'}>
+                  {move.a.isProto ? 'Made' : 'Took'}
+                </span>
+                <span class={fg.str}>{bigNum(move.damageRoll)}</span>
+                -
+                <span class={fg.def}>{bigNum(move.def)}</span>
+                {#if move.damage <= 0}
+                  =
+                  <span class={fg.def}>no damage</span>
+                {:else}
+                  =
+                  <span class={fg.str}>{bigNum(move.damage)}</span>
+                  dmg,
+                  <span class={move.a.isProto ? 'attacking' : 'defending'}>
+                    {bigNum(move.hp)}
+                  </span>
+                  hp left
+                {/if}
+              </nobr>
+            </div>
+          {/if}
+          <span />
+        {/each}
+      </div>
 
-    <div class="battle-{enemy.battle.outcome} battle-outcome">
-      {#if enemy.battle.outcome == 'win'}
-        <span class="fg-{enemy.xp[0]}">{bigNum(enemy.xp[1])}</span>
-        {enemy.cash}
-      {:else}{enemy.battle.outcome.toUpperCase()}{/if}
-    </div>
-
+      <div class="battle-outcome">
+        {#if enemy.battle.outcome != 'win' || !$abridgedAnalysis}
+          <span class="battle-{enemy.battle.outcome}">
+            {enemy.battle.outcome.toUpperCase()}
+          </span>
+        {/if}
+        {#if enemy.battle.outcome == 'win'}
+          {$abridgedAnalysis ? '' : enemy.xp[0]}
+          <span class={fg[enemy.xp[0]]}>
+            {($abridgedAnalysis ? '' : '+') + bigNum(enemy.xp[1])}
+          </span>
+          score
+          <span class="rainbow">+ {enemy.score}</span>
+        {/if}
+      </div>
+    {/if}
   </div>
 {/if}
 
@@ -181,9 +252,8 @@
   <div class="menu">
     <button>menu</button>
     <div class="dropdown">
-      <button on:click={toggleWhat}>What</button>
+      <button on:click={toggleWhat}>Help</button>
       <button on:click={e => open('board')}>Board</button>
-      <button class="wip">Campaign</button>
       <button on:click={e => open('files')}>Files</button>
     </div>
   </div>
@@ -191,19 +261,20 @@
   {#if page == 'board'}
     <button class="hotkey" on:click={undo}>undo</button>
     <div class="prota">
-      <span class="field-name">str</span>
-      <span class="fg-str">{bigNum($str)}</span>
-      &nbsp;
-      <span class="field-name">vit</span>
-      <span class="fg-vit">{bigNum($vit)}</span>
-      &nbsp;
-      <span class="field-name">def</span>
-      <span class="fg-def">{bigNum($def)}</span>
-      &nbsp;
-      <span class="field-name">spd</span>
-      <span class="fg-spd">{bigNum($spd)}</span>
+      {#each statsOrder as stat, i}
+        {@html i > 0 ? '&nbsp' : ''}
+
+        <span class="field-name">{stat}</span>
+        <span
+          class="{fg[stat]} tooltip-bottom"
+          data-tooltip={lang['tip_' + stat]}>
+          {bigNum($state[stat])}
+        </span>
+      {/each}
     </div>
-    <button class="hotkey wip">ability</button>
+    <button class="hotkey wip tooltip-bottom" data-tooltip={lang.tip_ability}>
+      ability
+    </button>
   {:else}
     <div class="page-title">{page}</div>
   {/if}
@@ -211,48 +282,90 @@
   <div class="spacer" />
   <div class="turns">
     {#if page == 'board'}
+      <span class="field-name">score</span>
+      <span class="rainbow tooltip-bottom" data-tooltip={lang.tip_score}>
+        {bigNum($state.score)}
+      </span>
       <span class="field-name">turns</span>
-      <span>{$turns}</span>
-      <span class="field-name">$</span>
-      <span>{Math.round($cash)}</span>
+      <span>{Math.round($state.turns)}</span>
     {/if}
   </div>
 </div>
 
-{#if $what}
-  <div class="what">
-    {@html { board: lang.what, files: lang.what_files }[page]}
-    <div />
-    <button on:click={e => ($what = false)}>Ok, got it</button>
+<div class="bottom panel {$what ? '' : 'panel-hidden-ne'}">
+  {@html { board: lang.what, files: lang.what_files }[page]}
+  <div />
+  <button on:click={e => ($what = false)}>Ok, got it</button>
+</div>
+
+<div class="center panel {$state.complete && page=="board" ? '' : 'panel-hidden-n'}">
+  <div>
+    <h4>Board clear</h4>
+    <big>
+      Score:
+      <span class="rainbow">{$debrief.score}</span>
+    </big>
+    =
+    <br />
+    <br />
+    {$debrief.dreamsResolved}
+    <span class="rainbow">&nbsp;dream</span> cells
+    * 100
+    {#each statsOrder as field}
+      + {bigNum($debrief[field])}
+      <span class={fg[field]}>{field}</span>
+      cells&nbsp;
+    {/each}
+    - {$debrief.turns} turns * 3
   </div>
-{/if}
+  <br />
+  <small>
+    Challenge url - you can share it with someone who wants to try and beat your
+    record on this board:
+    <br />
+    <br />
+  </small>
+  <u>
+    <a href={$debrief.challengeUrl}>{$debrief.challengeUrl}</a>
+    <br />
+    <br />
+    <div class="buttons-horizontal">
+      <button on:click={undo}>Undo</button>
+      <button on:click={customize}>Edit board</button>
+    </div>
+  </u>
+</div>
 
 <div class="main">
   {#if page == 'board'}
     <div
       class="board-table"
-      style="width:{20 * $game.width}px"
+      style="width:{20 * $conf.width}px"
       on:mousemove={hoverCell}
       on:mousedown={clickCell}
       on:mouseleave={unHoverCell}>
-      {#each $game.board as beast, i}
+      {#each $board as beast, i}
         <div
           id={i}
-          class="cell bg-{beast.kind}
-          {beast.dead ? 'dead' : ''}
-          {$game.cutoff(i) ? 'cutoff' : [beast.attackable && beast == enemy ? 'aimed' : '', beast.attackable ? 'attackable' : '', beast.winnable || (beast.dead && beast.reached) ? 'lightup' : ''].join(' ')}
-          " />
+          class="cell {beast.dream && !beast.resolved ? 'bg-none' : bg[beast.kind]}
+          {beast.resolved && !beast.dream ? 'resolved' : ''}
+          {beast.frozen && !beast.dream ? 'frozen' : [beast.possible && beast == enemy ? 'aimed' : '', beast.possible ? 'attackable' : '', beast.dream || beast.possible || (beast.resolved && beast.reached) ? '' : 'darken'].join(' ')}
+          ">
+          {#if beast.dream && !beast.resolved && !beast.frozen}
+            <div class="dream" />
+          {/if}
+        </div>
       {/each}
     </div>
     <div class="board-conf">
       Seed
-      <input bind:value={conf.seed} />
+      <input bind:value={custom.seed} />
       &nbsp;Width
-      <input bind:value={conf.width} />
+      <input bind:value={custom.width} />
       &nbsp;Height
-      <input bind:value={conf.height} />
+      <input bind:value={custom.height} />
       &nbsp;
-      <button on:click={playFromConf}>play</button>
+      <button on:click={playCustom}>play</button>
     </div>
   {/if}
   {#if page == 'files'}
@@ -263,7 +376,12 @@
         ) as save}
           <li>
             {#if save[0] != 'auto' && save[1] != '#NEW'}
-              <button on:click={e => deleteSave(save[0])}>X</button>
+              <button
+                on:click={e => deleteSave(save[0])}
+                class="tooltip-bottom"
+                data-tooltip={lang.tip_erase}>
+                X
+              </button>
             {:else}
               <span>{save[0] == 'auto' ? 'AUTO' : ''}</span>
             {/if}

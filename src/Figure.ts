@@ -2,18 +2,20 @@ import Battler from "./Battler";
 import Game from "./Game";
 import Battle from "./Battle";
 
-export class Beast {
+export default class Figure {
   cells: number[] = [];
-  neighbors: Beast[] = [];
+  neighbors: Figure[] = [];
   depth: number;
-  dead = false;
+  last: number;
+  bottomRow:boolean;
+  resolved = false;
   reached = false;
   battler: Battler;
   battle: Battle;
 
   constructor(public game: Game, public kind: string, public id: number) {}
 
-  addNeighbor(n: Beast) {
+  addNeighbor(n: Figure) {
     if (n && !this.neighbors.includes(n)) {
       this.neighbors.push(n);
       n.neighbors.push(this);
@@ -24,22 +26,22 @@ export class Beast {
     if (this.reached) return;
     this.reached = true;
     if (this.kind == "none") {
-      this.die();
+      this.resolve();
     }
   }
 
-  die() {
-    if(this.dead)
+  resolve() {
+    if(this.resolved)
       return;
     if(!this.battler)
       this.updateBattler();
-    this.dead = true;
+    this.resolved = true;
     for (let n of this.neighbors) n.reach();    
     this.loot()
   }
 
   updateBattler() {
-    if (this.dead || this.kind == "none") {
+    if (this.resolved || this.kind == "none") {
       this.battler = null;
       return this;
     }
@@ -52,12 +54,12 @@ export class Beast {
     bonuses[this.kind] = this.cells.length * 4;
 
     for (let n of this.neighbors) {
-      if (!n.dead) {
+      if (!n.resolved) {
         bonuses[n.kind] += n.cells.length;
       }
     }
 
-    if (!this.battler) this.battler = new Battler(this.id);
+    if (!this.battler) this.battler = new Battler(this);
 
     for (let stat in Battler.statsBase) {
       this.battler[stat] = Math.floor(
@@ -73,12 +75,8 @@ export class Beast {
     return this;
   }
 
-  get attackable() {
-    return this.reached && !this.dead && this.battle && this.battle.outcome == "win";
-  }
-
-  get winnable() {
-    return this.attackable && this.battle.outcome == "win";
+  get possible() {
+    return this.reached && !this.resolved && this.battle && this.battle.outcome == "win";
   }
 
   loot() {
@@ -86,15 +84,24 @@ export class Beast {
     if(statName == "none")
       return;
     this.game.prota[statName] += Math.floor(this.battler[statName] / 10);
-    this.game.cash += this.cash;
+    this.game.score += this.score;
   }
 
-  get cash(){
-    return this.cells.length * (this.depth + 10)
+  get score(){
+    return this.cells.length * (this.dream?100:1)
   }
 
   get xp(){
     let statName = this.kind;
     return [statName, Math.floor(this.battler[statName] / 10)];
   }
+
+  get frozen(){
+    return this.game.frozen(this.last)
+  }
+
+  get dream(){
+    return this.kind == "dream";
+  }
+
 }

@@ -33,7 +33,9 @@
   "license": "GPL",
   "dependencies": {
     "bulma": "^0.7.5",
+    "jsfx": "^0.0.1",
     "mersennetwister": "^0.2.3",
-    "temp-dir": "^2.0.0"
+    "temp-dir": "^2.0.0",
+    "tone": "^13.4.9"
   }
 }

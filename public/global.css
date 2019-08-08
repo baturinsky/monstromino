@@ -1,15 +1,36 @@
-@keyframes blink {   /* назовём анимацию: "go-left-right" */
+@keyframes rainbow {
   0% {
-    opacity: 0.8;
+    filter:hue-rotate(0deg)
   }
-  25% {
-    opacity: 0.75;
+
+  100% {
+    filter:hue-rotate(360deg)
+  }
+}
+
+@keyframes blink {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.55;
   }
   75% {
-    opacity: 0.45;
+    opacity: 0.4;
   }
   100% {
-    opacity: 0.4;
+    opacity: 0.3;
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), 10px -5px 30px 20px rgba(255, 0, 0, 0.5),
+      -10px -5px 30px 20px rgba(0, 0, 255, 0.5), 0px 13px 30px 20px rgba(0, 255, 0, 0.5);
+  }
+  100% {
+    box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), -10px 5px 30px 20px rgba(255, 0, 0, 0.5),
+      10px 5px 30px 20px rgba(0, 0, 255, 0.5), 0px -13px 30px 20px rgba(0, 255, 0, 0.5);
   }
 }
 
@@ -40,44 +61,53 @@ a:hover[href] {
   flex-flow: row wrap;
 }
 
-.bg-str {
+.bg-red {
   background: red;
 }
-.bg-vit {
+.bg-green {
   background: #0e0;
 }
-.bg-agi {
+.bg-cyan {
   background: cyan;
 }
-.bg-def {
+.bg-yellow {
   background: gold;
 }
-.bg-spd {
+.bg-blue {
   background: #33f;
 }
-.bg-int {
+.bg-purple {
   background: magenta;
 }
 .bg-none {
   background: white;
 }
+.bg-rainbow {
+  background: cyan;
+  animation: rainbow 3s infinite;
+}
 
-.fg-str {
+.rainbow {
+  color: violet;
+  animation: rainbow 3s infinite;
+}
+
+.fg-red {
   color: red;
 }
-.fg-vit {
+.fg-green {
   color: #0b0;
 }
-.fg-agi {
+.fg-cyan {
   color: #0bb;
 }
-.fg-def {
+.fg-yellow {
   color: #fb0;
 }
-.fg-spd {
+.fg-blue {
   color: #33f;
 }
-.fg-int {
+.fg-purple {
   color: magenta;
 }
 .fg-none {
@@ -88,7 +118,6 @@ a:hover[href] {
   width: 20px;
   height: 20px;
   text-align: center;
-  box-sizing: border-box;  
 }
 
 .attackable {
@@ -96,18 +125,25 @@ a:hover[href] {
   transition: 0.2s;
 }
 
-.dead {
-  background: white;
-  transition: 0.2s;
+.resolved {
+  opacity: 0;
+  transition: 0.3s;
 }
 
-
-.aimed{
-  opacity:0.66;
+.aimed {
+  opacity: 0.66;
 }
 
-.cell:not(.lightup) {
-  filter: brightness(0.5);
+.aimed::after {
+  content: " ";
+  position: absolute;
+  margin-left: -10px;
+  width: 20px;
+  height: 20px;
+  box-shadow: 0px 0px 5px 5px rgba(255, 255, 255, 0.5);
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
 }
 
 .header {
@@ -121,7 +157,7 @@ a:hover[href] {
   width: 100%;
   background: white;
   box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.2);
-  z-index: 1;
+  z-index: 10;
   margin: 0px;
   left: 0px;
   top: 0px;
@@ -134,11 +170,11 @@ a:hover[href] {
   font-size: 18pt;
   vertical-align: middle;
   line-height: 36px;
-  margin-right:5px;
-  margin-left:-100px;
-  width:300px;
+  margin-right: 5px;
+  margin-left: -100px;
+  width: 300px;
   text-align: right;
-  float:right;
+  float: right;
   overflow: visible;
 }
 
@@ -159,16 +195,21 @@ a:hover[href] {
   position: fixed;
   z-index: 2;
   opacity: 0;
-  width: 300px;
-  pointer-events:none;
+  min-width: 300px;
+  pointer-events: none;
 }
 
 .analysis > div {
   background: white;
   box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
   padding: 5px;
-  margin-bottom: 5px;  
+  margin-bottom: 5px;
 }
+
+.analysis-shown {
+  opacity: 0.9;
+}
+
 
 .combat-log {
   text-align: center;
@@ -192,7 +233,7 @@ a:hover[href] {
 }
 
 .battle-win {
-  color: black;
+  color: green;
 }
 
 .battle-lose {
@@ -257,11 +298,11 @@ button:active {
 }
 
 .hotkey::first-letter {
-  color:red;
+  color: red;
 }
 
 .dropdown button::first-letter {
-  color:red;
+  color: red;
 }
 
 div:hover > .dropdown {
@@ -269,11 +310,11 @@ div:hover > .dropdown {
   opacity: 1;
 }
 
-.menu{
+.menu {
   padding: 0px;
 }
 
-.menu button{
+.menu button {
   width: 150px;
 }
 
@@ -281,47 +322,83 @@ button:hover {
   box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
 }
 
-.what {
-  margin-left: -450px;
+.buttons-horizontal {
+  display: flex;
+  flex-flow: row;
+  justify-content: space-around;
+}
+
+.buttons-horizontal button{
+  flex-grow: 1;
+}
+
+.panel {
   position: fixed;
-  bottom: 0px;
-  margin-bottom: 50px;
-  left: 50%;
+  z-index: 100;
+  margin-left: -450px;
   width: 900px;
-  z-index: 1;
-  background: white;
+  background: rgba(255, 255, 255, 0.95);
   box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
   padding: 10px;
   display: flex;
   flex-flow: column;
+  transition: 0.5s;
+  left: 50%;
 }
 
-.what button{
+.bottom{
+  bottom: 0px;
+  margin-bottom: 50px;
+}
+
+.center{
+  margin-top: auto;
+  margin-bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+}
+
+.panel-hidden-ne{
+  left: -10%;
+  opacity: 0;
+  transform: scale(0);
+  margin-bottom: 100%;
+  pointer-events: none;
+}
+
+.panel-hidden-n{
+  opacity: 0;
+  transform: none;
+  top: -100%;
+  pointer-events: none;
+}
+
+.what button {
   margin: auto;
   width: 96%;
-  margin-top:10px;
+  margin-top: 10px;
 }
 
-.page-title{
-  text-transform:uppercase;
+.page-title {
+  text-transform: uppercase;
   font-size: 14px;
   line-height: 36px;
   letter-spacing: 0.5em;
 }
 
-.board-conf{
+.board-conf {
   margin: 10px auto;
   width: 800px;
   text-align: center;
 }
 
-.files{
-  columns: 500px;
+.files {
 }
 
-input{
+input {
   width: 50px;
-  border: solid rgba(0,0,0,0.3);
+  border: solid rgba(0, 0, 0, 0.3);
   border-width: 0px 0px 1px 0px;
   font-size: 14pt;
   text-align: right;
@@ -332,19 +409,226 @@ ul {
   margin: 0px;
 }
 
-.save{
-  width:400px;
+.save {
+  width: 400px;
 }
-
 
 .wip {
-  text-decoration:line-through;
+  text-decoration: line-through;
 }
 
-.files button{
+.files button {
   margin: 3px;
 }
 
-.cutoff{
-  filter: grayscale(100%) !important;
+.darken {
+  filter: brightness(0.4);
+}
+
+.frozen {
+  filter: grayscale(1);
+}
+
+.dream {
+  z-index: 1;
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), 10px -5px 30px 20px rgba(255, 128, 128, 0.5),
+      -10px -5px 30px 20px rgba(128, 128, 255, 0.5), 0px 13px 30px 20px rgba(128, 255, 128, 0.5);
+  /* animation: glow 5s infinite alternate; kills firefox fps*/
+
+}
+
+.complete-log{
+  text-align: left;
+}
+
+span {
+  padding: 0px;
+  margin: 0px;
+}
+
+[data-tooltip],
+.tooltip {
+  position: relative;
+}
+
+/* Base styles for the entire tooltip */
+[data-tooltip]:before,
+[data-tooltip]:after,
+.tooltip:before,
+.tooltip:after {
+  position: absolute;
+  visibility: hidden;
+  opacity: 0;
+  transition:         
+      opacity 0.2s ease-in-out,
+      visibility 0.2s ease-in-out,
+      transform 0.2s cubic-bezier(0.71, 1.7, 0.77, 1.24);
+  transform:         translate3d(0, 0, 0);
+  pointer-events: none;
+}
+
+/* Show the entire tooltip on hover and focus */
+[data-tooltip]:hover:before,
+[data-tooltip]:hover:after,
+[data-tooltip]:focus:before,
+[data-tooltip]:focus:after,
+.tooltip:hover:before,
+.tooltip:hover:after,
+.tooltip:focus:before,
+.tooltip:focus:after {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Base styles for the tooltip's directional arrow */
+.tooltip:before,
+[data-tooltip]:before {
+  z-index: 1001;
+  border: 6px solid transparent;
+  background: transparent;
+  content: "";  
+}
+
+/* Base styles for the tooltip's content area */
+.tooltip:after,
+[data-tooltip]:after {
+  z-index: 1000;
+  padding: 8px;
+  width: 160px;
+  background-color: rgba(255,255,255,0.9);
+  color: black;
+  content: attr(data-tooltip);
+  font-size: 14px;
+  line-height: 1.2;
+  box-shadow: 1px 0px 4px 0px rgba(0,0,0,0.4);
+  border-radius: 3px;
+  text-align: center;
+  text-transform: none;
+  font-weight: 500;
+}
+
+/* Directions */
+
+/* Top (default) */
+[data-tooltip]:before,
+[data-tooltip]:after,
+.tooltip:before,
+.tooltip:after,
+.tooltip-top:before,
+.tooltip-top:after {
+  bottom: 100%;
+  left: 50%;
+}
+
+[data-tooltip]:before,
+.tooltip:before,
+.tooltip-top:before {
+  margin-left: -6px;
+  margin-bottom: -12px;
+  border-top-color: white;
+}
+
+/* Horizontally align top/bottom tooltips */
+[data-tooltip]:after,
+.tooltip:after,
+.tooltip-top:after {
+  margin-left: -80px;
+}
+
+[data-tooltip]:hover:before,
+[data-tooltip]:hover:after,
+[data-tooltip]:focus:before,
+[data-tooltip]:focus:after,
+.tooltip:hover:before,
+.tooltip:hover:after,
+.tooltip:focus:before,
+.tooltip:focus:after,
+.tooltip-top:hover:before,
+.tooltip-top:hover:after,
+.tooltip-top:focus:before,
+.tooltip-top:focus:after {
+  transform:         translateY(-12px); 
+}
+
+/* Left */
+.tooltip-left:before,
+.tooltip-left:after {
+  right: 100%;
+  bottom: 50%;
+  left: auto;
+}
+
+.tooltip-left:before {
+  margin-left: 0;
+  margin-right: -12px;
+  margin-bottom: 0;
+  border-top-color: transparent;
+  border-left-color: white;
+}
+
+.tooltip-left:hover:before,
+.tooltip-left:hover:after,
+.tooltip-left:focus:before,
+.tooltip-left:focus:after {
+  transform:         translateX(-12px); 
+}
+
+/* Bottom */
+.tooltip-bottom:before,
+.tooltip-bottom:after {
+  top: 100%;
+  bottom: auto;
+  left: 50%;
+}
+
+.tooltip-bottom:before {
+  margin-top: -12px;
+  margin-bottom: 0;
+  border-top-color: transparent;
+  border-bottom-color: white;
+}
+
+.tooltip-bottom:hover:before,
+.tooltip-bottom:hover:after,
+.tooltip-bottom:focus:before,
+.tooltip-bottom:focus:after {
+  transform:         translateY(12px); 
+}
+
+/* Right */
+.tooltip-right:before,
+.tooltip-right:after {
+  bottom: 50%;
+  left: 100%;
+}
+
+.tooltip-right:before {
+  margin-bottom: 0;
+  margin-left: -12px;
+  border-top-color: transparent;
+  border-right-color: white;
+}
+
+.tooltip-right:hover:before,
+.tooltip-right:hover:after,
+.tooltip-right:focus:before,
+.tooltip-right:focus:after {
+  transform:         translateX(12px); 
+}
+
+/* Move directional arrows down a bit for left/right tooltips */
+.tooltip-left:before,
+.tooltip-right:before {
+  top: 3px;
+}
+
+/* Vertically center tooltip content for left/right tooltips */
+.tooltip-left:after,
+.tooltip-right:after {
+  margin-left: 0;
+  margin-bottom: -16px;
 }

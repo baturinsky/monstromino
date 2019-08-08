@@ -12,8 +12,8 @@ export default class Battle {
       b.nextAttack = b.interval();
     }
 
-    bats[0].seed(bats[1].id);
-    bats[1].seed(bats[0].id);
+    bats[0].seed(bats[1]);
+    bats[1].seed(bats[0]);
 
     let i = 30;
     while (!this.over() && i-- > 0) {
@@ -41,7 +41,7 @@ export default class Battle {
       a.str <= 1e6 ? a.rni() % (a.str * 2) : (a.rni() % 2e6) * a.str / 1e6;
     damage = Math.max(0, damageRoll - d.def);
     if (damage > 0) d.hp -= damage;
-    return { a, d, damage, hp: d.hp };
+    return { a, d, damage, damageRoll, def:d.def, hp:d.hp };
   }
 
   over() {

@@ -1,3 +1,15 @@
+Do:
+Proper custom form
+Confirm window
+Death line
+
+Done:
+Tooltip delay
+Detailed tooltip
+UI tooltips
+URI path
+Win screen
+
 Fix:
 attack rni stability
 
@@ -22,23 +34,32 @@ Passive abilities:
   Dagger - 50% of blocked damage is still dealt
   Whip - 50% bonus to damage past def, but enemy def is doubled
   Rapier - if enemy attack is completely blocked, your next attack does double damage
-  Halberd - damage roll is either 0% or 200%
+  Knuckles - second and so on attack in a row without being attacked ignore 50% of enemy def.
+  Morningstar - damage roll is either 0% or 200%
   Javelins - deal free attack at the beginning of combat with double damage
-  Bag* - gain more loot
-  Branch - gain percentage of lost hp back
+  Bag* - gain more loot/xp
+  Medkit - gain percentage of lost hp back
   Dung* - draw counts as win, but you get half loot/xp
   Poison - enemy loses some hp per their attack for each your attack done
   Flamberge - enemy loses percentage of already lost hp
   Teeth - get percentage of damage you deal
   Warpaint - add percentage of lost hp to attacks
+  Halberd* - +20% damage if attacking enemy that is next to previous one.
+  Brush* - +20% damage if attacking enemy that has the same color as previous.
 
 Active abilities:
-  Diplomacy (Vasilisa) - remove any one enemy, get no loot/xp
+  Diplomacy (Vasilisa) - remove any one enemy in reach, get no loot/xp
   Horror (Wolf) - if you defeat enemy, all neighbors flee
-  CQC (Captain) - do not attack. Responce with your attack to every enemy attack. If you deal damage, enemy attack is cancelled.
-  Immortality (Scarlett) - recover to full hp once per combat
-  Greed (Tomiko) - get triple loot/xp
-  Cleave (Vladimir) - enemy get much more stat bonuses from neighbors. If you win, defeat all neighbors too for full gold/xp
+  CQC (Captain) - you engage the target and all it's neighbors at once. 
+    You do no attacks of your own, but response with your attack to every enemy attack. 
+    If you deal damage, enemy attack strength is halved.
+  Immortality (Scarlett) - recover to full hp once per combat. When you do, you attack with power equal to your hp.
+  Greed (Tomiko) - get triple loot and/or stats.
+  Cleave (Vladimir) - while you next enemy is ajacent to previous, you do not spend turns, 
+    your str is multiplied by 1.1 and other stats divided by 1.1, cumulatively.
   Teleport (Truth) - can attack any enemy. If you win, you can reach it's neighbors too.
   Possess (Oleg) - if you win, you copy enemy stats
-  Massacre (Fenrir) - destroy all reached enemies, no loot/xp
+  Massacre (Devourer) - destroy all reached enemies, no loot/xp
+  Luck (Marquise) - each combat is rolled 10 times. 
+    If at least one succeeds, you can win at the price of luck equal to failed combat rolls.
+    You start with some luck and recover it gradually.
