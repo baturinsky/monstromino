@@ -417,6 +417,11 @@ button:hover {
   pointer-events: none;
 }
 
+.panel-hidden{
+  opacity: 0;
+  pointer-events: none;
+}
+
 .what button {
   margin: auto;
   width: 96%;
@@ -486,7 +491,6 @@ ul {
   box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), 10px -5px 30px 20px rgba(255, 128, 128, 0.5),
       -10px -5px 30px 20px rgba(128, 128, 255, 0.5), 0px 13px 30px 20px rgba(128, 255, 128, 0.5);
 }
-
 
 .dream.attackable::after {
   box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), 10px -5px 30px 30px rgba(255, 128, 128, 0.5),

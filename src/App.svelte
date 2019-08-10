@@ -350,7 +350,7 @@
 </div>
 
 <div
-  class="center panel {$state.complete && page == 'board' ? '' : 'panel-hidden-n'}">
+  class="center panel {$state.complete && page == 'board' ? '' : 'panel-hidden'}">
   <div>
     <h4>Board clear</h4>
     <big>
