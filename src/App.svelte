@@ -144,8 +144,8 @@
   }
 
   function playCustom() {
-    for (let k in custom) custom[k] = +custom[k];
-    $game.start(custom);
+    /*for (let k in custom) custom[k] = +custom[k];
+    $game.start(custom);*/
     goTo(custom);
   }
 

@@ -2,7 +2,7 @@ import * as store from "./store";
 import Twister from "mersennetwister";
 import Fig from "./Fig";
 import Battler from "./Battler";
-import { compareObjects } from "./Util"
+import { compareObjects } from "./Util";
 
 function weightedRandom(a: number[], rni: () => number) {
   let roll = (rni() % a.reduce((x, y) => x + y)) - a[0];
@@ -17,7 +17,7 @@ class Config {
   seed: number;
 }
 
-const colorsConst ={
+const colorsConst = {
   str: "red",
   vit: "green",
   def: "yellow",
@@ -39,7 +39,7 @@ export default class Game {
   complete: boolean;
 
   prota: Battler;
-  turns: number[];
+  turns: number[] = [];
 
   score: number;
   conf: Config;
@@ -50,44 +50,48 @@ export default class Game {
     return this;
   }
 
-  get colors(){
+  get colors() {
     return colorsConst;
   }
 
   constructor(conf?: Config, persist?: string) {
-    if (conf) this.conf = conf;    
     if (persist) this.persist = persist;
+    this.config(conf);
     store.game.set(this);
   }
 
+  start() {
+    this.generate();
+    this.play();
+    this.saveAuto();
+  }
 
   config(c: Config) {
     this.conf = c;
     return this;
   }
 
-  load(src: string | any): boolean {    
-    if(typeof src == "string"){
+  load(src: string | any): boolean {
+    if (typeof src == "string") {
       let data = Game.loadRaw(src);
-      if(data) {
-        this.deserialize(data);
+      if (data) {
+        this.deserialize(data);        
         return true;
       }
-      return false;  
+      return false;
     } else {
       this.deserialize(src);
     }
   }
 
-  static loadRaw(path: string){
-    if (!path) 
-      return null;
+  static loadRaw(path: string) {
+    if (!path) return null;
     let data = localStorage.getItem(path);
     if (data && data != "undefined") {
       return JSON.parse(data);
     } else {
       return null;
-    } 
+    }
   }
 
   save(path?: string) {
@@ -130,7 +134,7 @@ export default class Game {
     this.play(data.turns);
   }
 
-  get dreamFrequency(){
+  get dreamFrequency() {
     return 200;
   }
 
@@ -145,9 +149,13 @@ export default class Game {
       weightedRandom([1, 0, 1, 1, 1, 1], this.rni)
     );
 
-    for (let i = 0; i < this.cellsNumber; i += Math.floor(this.dreamFrequency/2) + this.rni() % this.dreamFrequency) {
-      if(i==0)
-        continue;
+    for (
+      let i = 0;
+      i < this.cellsNumber;
+      i +=
+        Math.floor(this.dreamFrequency / 2) + (this.rni() % this.dreamFrequency)
+    ) {
+      if (i == 0) continue;
       raw[i] = 1;
     }
 
@@ -155,7 +163,6 @@ export default class Game {
     for (let i in raw) {
       this.populate(raw, Number(i));
     }
-
   }
 
   populate(raw: number[], start: number) {
@@ -187,11 +194,9 @@ export default class Game {
       }
     }
 
-
     fig.last = fig.cells.reduce((a, b) => (a > b ? a : b));
     let depths = fig.cells.map(cell => this.row(cell));
     fig.depth = Math.round(depths.reduce((a, b) => a + b) / fig.cells.length);
-
   }
 
   row(cell: number) {
@@ -214,7 +219,7 @@ export default class Game {
       fig.reached = false;
       fig.resolved = false;
       fig.battle = null;
-      if(fig.dream){
+      if (fig.dream) {
         this.dreamsTotal++;
       }
     }
@@ -227,14 +232,13 @@ export default class Game {
       if (this.figs[id]) this.figs[id].resolve();
     }
 
-    this.saveAuto()
+    this.saveAuto();
     this.stateChanged();
   }
 
   attackFigAt(cell: number): Fig {
     let fig = this.board[cell];
-    if(!fig)
-      return null;
+    if (!fig) return null;
     if (fig.frozen) return null;
     if (!fig) return null;
     if (fig.possible) {
@@ -248,7 +252,7 @@ export default class Game {
     return null;
   }
 
-  saveAuto(){
+  saveAuto() {
     this.save(this.persist);
   }
 
@@ -284,21 +288,18 @@ export default class Game {
 
   stateChanged() {
     this.updateBattles();
-    store.conf.set(this.conf)
+    store.conf.set(this.conf);
     store.board.set(this.board);
-    this.dreamsResolved = 0
-    this.dreamsFrozen = 0
-    for(let f of this.figs){
-      if(f.dream){
-        if(f.resolved)
-          this.dreamsResolved++;
-        else if(f.frozen)
-          this.dreamsFrozen++
+    this.dreamsResolved = 0;
+    this.dreamsFrozen = 0;
+    for (let f of this.figs) {
+      if (f.dream) {
+        if (f.resolved) this.dreamsResolved++;
+        else if (f.frozen) this.dreamsFrozen++;
       }
     }
 
-
-    this.complete = this.dreamsResolved + this.dreamsFrozen == this.dreamsTotal
+    this.complete = this.dreamsResolved + this.dreamsFrozen == this.dreamsTotal;
     store.setGameState({
       turns: this.turns.length,
       score: this.score,
@@ -306,53 +307,46 @@ export default class Game {
       vit: this.prota.vit,
       def: this.prota.def,
       spd: this.prota.spd,
-      complete: this.complete?1:0
-    })
+      complete: this.complete ? 1 : 0
+    });
 
-    store.debrief.set(this.debrief)
+    store.debrief.set(this.debrief);
   }
 
   frozen(i: number) {
     return i < this.width * Math.floor(this.turns.length / 3 - 5);
   }
 
-  start(custom:any){
-    this.config(custom);
-    this.generate();
-    this.play();
-    this.saveAuto();
-  }
-
-  get debrief(){
+  get debrief() {
     let d = {
       score: this.score,
       dreamsResolved: this.dreamsResolved,
       dreamsFrozen: this.dreamsFrozen,
       turns: this.turns.length,
       challengeUrl: this.challengeUrl
-    }
-    for(let stat of Battler.statsOrder){
+    };
+    for (let stat of Battler.statsOrder) {
       d[stat] = 0;
     }
-    for(let f of this.figs){
-      if(f.resolved)
-        d[f.kind] += f.cells.length;
+    for (let f of this.figs) {
+      if (f.resolved) d[f.kind] += f.cells.length;
     }
-    return d
+    return d;
   }
 
-  get challengeUrl(){
+  get challengeUrl() {
     let params = new URLSearchParams(this.conf as any);
     params.append("goal", this.score.toString());
-    let url = window.location.host + window.location.pathname + "?" + params.toString();
+    let url =
+      window.location.host + window.location.pathname + "?" + params.toString();
     return url;
   }
 
-  static create(){
+  static create() {
     let urlConf;
 
-    let defaultConf = {width:30, height:80, seed:1};
-    if(document.location.search){
+    let defaultConf = { width: 30, height: 80, seed: 1 };
+    if (document.location.search) {
       let usp = new URLSearchParams(document.location.search.substr(1));
       urlConf = Object.fromEntries(usp.entries());
     }
@@ -360,23 +354,26 @@ export default class Game {
     let auto = "auto";
     let raw = Game.loadRaw(auto);
 
-    if(!raw){
-      let game = new Game(urlConf || defaultConf, auto)
+    if (!raw) {
+      let game = new Game(urlConf || defaultConf, auto);
+      game.start();
       return game;
     }
 
     let confMatches = !urlConf || compareObjects(raw.conf, urlConf);
-    
-    let game = new Game(urlConf, auto)
 
-    if(confMatches){      
+    let game = new Game(urlConf || raw.conf, auto);
+
+    if (confMatches) {
       game.load(raw);
+    } else {
+      game.start();
     }
-  
-    return game;  
+
+    return game;
   }
 
-  colorAt(cell){
+  colorAt(cell) {
     return this.figAt(cell).color;
   }
 }
