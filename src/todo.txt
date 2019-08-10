@@ -1,7 +1,6 @@
 Do:
 Proper custom form
 Confirm window
-Death line
 
 Done:
 Tooltip delay
@@ -9,11 +8,16 @@ Detailed tooltip
 UI tooltips
 URI path
 Win screen
+attack rni stability
+Kill animation
 
 Fix:
-attack rni stability
 
-Canvas field?
+Maybe:
+Canvas field
+Death line
+
+==Design notes==
 
 Bonuses: 
   Supplies
@@ -29,6 +33,9 @@ Map traits:
   Communal beasts - more bonuses from neighbors, less from self
   Megabeasts - bigger beasts
   Magma - everyone take damage during fight
+  Rainbow - color density varies by x or y
+  Chaotic freeze - freeze line is not strictly horizontal
+  Raindrops - figures tend to stretch along one axis  
 
 Passive abilities:
   Dagger - 50% of blocked damage is still dealt

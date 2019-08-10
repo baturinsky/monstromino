@@ -1,5 +1,5 @@
 import Twister from "mersennetwister";
-import Figure from "./Figure";
+import Fig from "./Fig";
 import Battle from "./Battle";
 
 export default class Battler {
@@ -20,7 +20,7 @@ export default class Battler {
   hp: number;
 
 
-  constructor(public fig?:Figure){
+  constructor(public fig?:Fig){
   }
 
   stats(stats:any){
@@ -37,7 +37,8 @@ export default class Battler {
   }
 
   seed(opponent:Battler){
-    this.twister.seed(100 + Math.abs(opponent.fig?opponent.fig.id:-1)*2 + (this.fig?this.fig.id:-1))
+    let seed = 100 + Math.abs(opponent.fig?opponent.fig.id:-1)*2 + (this.fig?this.fig.id:-1);
+    this.twister.seed(seed)
   }
 
   get isProto(){
@@ -71,6 +72,17 @@ export default class Battler {
 
     return this;
   }
+
+  attack(d: Battler, battle:Battle) {
+    this.nextAttack = battle.time + this.interval();
+    let damage = 0;
+    let rnd = this.rni();
+    let damageRoll = Math.floor((rnd % 2e6) * this.str / 1e6);
+    damage = Math.max(0, damageRoll - d.def);
+    if (damage > 0) d.hp -= damage;
+    return { a:this, d, damage, damageRoll, def:d.def, hp:d.hp };
+  }
+
 
 
 }

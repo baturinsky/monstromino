@@ -458,6 +458,7 @@ var app = (function () {
     const conf = writable({});
     const debrief = writable({});
     const board = writable([]);
+    const game = writable(null);
     let state;
     function setGameState(o) {
         if (!state)
@@ -469,7 +470,7 @@ var app = (function () {
     what.set(localStorage.what == "no" ? false : true);
     what.subscribe(v => localStorage.setItem("what", v ? "yes" : "no"));
     const abridgedAnalysis = writable(false);
-    const games = writable([]);
+    const saves = writable([]);
     let savePrefix = "game ";
     let savePrefixLength = savePrefix.length;
     function updateSaves() {
@@ -492,7 +493,7 @@ var app = (function () {
             }
         }
         list.push([nextSlot(), "#NEW"]);
-        games.set(list);
+        saves.set(list);
     }
     function nextSlot() {
         let nextInd = 0;
@@ -755,7 +756,7 @@ var app = (function () {
                 for (let a of bats) {
                     if (a.nextAttack <= this.time && !(a.hp <= 0)) {
                         let d = bats[0] == a ? bats[1] : bats[0];
-                        this.log.push(this.attack(a, d));
+                        this.log.push(a.attack(d, this));
                     }
                 }
             }
@@ -766,15 +767,6 @@ var app = (function () {
                 this.outcome = "win";
             else
                 this.outcome = "draw";
-        }
-        attack(a, d) {
-            a.nextAttack = this.time + a.interval();
-            let damage = 0;
-            let damageRoll = a.str <= 1e6 ? a.rni() % (a.str * 2) : (a.rni() % 2e6) * a.str / 1e6;
-            damage = Math.max(0, damageRoll - d.def);
-            if (damage > 0)
-                d.hp -= damage;
-            return { a, d, damage, damageRoll, def: d.def, hp: d.hp };
         }
         over() {
             return this.log.length >= 20 || !this.bats.every(b => b.hp > 0);
@@ -797,7 +789,8 @@ var app = (function () {
             return this.twister.int();
         }
         seed(opponent) {
-            this.twister.seed(100 + Math.abs(opponent.fig ? opponent.fig.id : -1) * 2 + (this.fig ? this.fig.id : -1));
+            let seed = 100 + Math.abs(opponent.fig ? opponent.fig.id : -1) * 2 + (this.fig ? this.fig.id : -1);
+            this.twister.seed(seed);
         }
         get isProto() {
             return !this.fig;
@@ -821,11 +814,21 @@ var app = (function () {
             this.battle = new Battle([this.fig.game.prota, this]);
             return this;
         }
+        attack(d, battle) {
+            this.nextAttack = battle.time + this.interval();
+            let damage = 0;
+            let rnd = this.rni();
+            let damageRoll = Math.floor((rnd % 2e6) * this.str / 1e6);
+            damage = Math.max(0, damageRoll - d.def);
+            if (damage > 0)
+                d.hp -= damage;
+            return { a: this, d, damage, damageRoll, def: d.def, hp: d.hp };
+        }
     }
     Battler.statsOrder = "str vit def spd".split(" ");
     Battler.statsBase = { str: 10, vit: 30, def: 10, spd: 10, dream: 0 };
 
-    class Figure {
+    class Fig {
         constructor(game, kind, id) {
             this.game = game;
             this.kind = kind;
@@ -902,10 +905,13 @@ var app = (function () {
             return [statName, Math.floor(this.battler[statName] / 10)];
         }
         get frozen() {
-            return this.game.frozen(this.last);
+            return !this.resolved && this.game.frozen(this.last);
         }
         get dream() {
             return this.kind == "dream";
+        }
+        get color() {
+            return this.game.colors[this.kind];
         }
     }
 
@@ -924,61 +930,60 @@ var app = (function () {
             roll -= a[++i];
         return i;
     }
+    const colorsConst = {
+        str: "red",
+        vit: "green",
+        def: "yellow",
+        spd: "blue",
+        none: "none",
+        dream: "rainbow"
+    };
     class Game {
         constructor(conf, persist) {
             this.twister = new MersenneTwister();
             this.board = [];
-            this.figures = [];
+            this.figs = [];
             this.persist = null;
             if (conf)
                 this.conf = conf;
             if (persist)
-                this.loadOrGenerate(persist);
+                this.persist = persist;
+            game.set(this);
         }
         persistIn(path) {
             this.persist = path;
             return this;
         }
         get colors() {
-            return {
-                str: "red",
-                vit: "green",
-                def: "yellow",
-                spd: "blue",
-                none: "none",
-                dream: "rainbow"
-            };
-        }
-        loadOrGenerate(path) {
-            this.persist = path;
-            let conf$1 = this.conf;
-            let loadSuccess = this.load(path);
-            if (loadSuccess) {
-                if (!compareObjects(this.conf, conf$1)) {
-                    loadSuccess = false;
-                    this.conf = conf$1;
-                }
-            }
-            if (!loadSuccess) {
-                this.generate();
-                this.play();
-            }
-            conf.set(this.conf);
-            return this;
+            return colorsConst;
         }
         config(c) {
             this.conf = c;
             return this;
         }
-        load(path) {
+        load(src) {
+            if (typeof src == "string") {
+                let data = Game.loadRaw(src);
+                if (data) {
+                    this.deserialize(data);
+                    return true;
+                }
+                return false;
+            }
+            else {
+                this.deserialize(src);
+            }
+        }
+        static loadRaw(path) {
             if (!path)
-                return;
+                return null;
             let data = localStorage.getItem(path);
             if (data && data != "undefined") {
-                this.deserialize(JSON.parse(data));
-                return true;
+                return JSON.parse(data);
             }
-            return false;
+            else {
+                return null;
+            }
         }
         save(path) {
             if (!path) {
@@ -1014,16 +1019,20 @@ var app = (function () {
             this.generate();
             this.play(data.turns);
         }
+        get dreamFrequency() {
+            return 200;
+        }
         generate() {
             this.turns = [];
-            this.figures = [];
+            this.figs = [];
             this.twister.seed(this.conf.seed);
             this.rni = this.twister.int.bind(this.twister);
             this.deltas = [-1, 1, -this.width, +this.width];
-            let raw = [...Array(this.cellsNumber)].map(a => weightedRandom([1, 1, 1, 1, 1], this.rni));
-            for (let y = 0; y < this.height; y += 5 + (this.rni() % 5)) {
-                let x = this.rni() % this.width;
-                raw[y * this.width + x] = 5;
+            let raw = [...Array(this.cellsNumber)].map(a => weightedRandom([1, 0, 1, 1, 1, 1], this.rni));
+            for (let i = 0; i < this.cellsNumber; i += Math.floor(this.dreamFrequency / 2) + this.rni() % this.dreamFrequency) {
+                if (i == 0)
+                    continue;
+                raw[i] = 1;
             }
             this.board = raw.map(_ => null);
             for (let i in raw) {
@@ -1034,10 +1043,10 @@ var app = (function () {
             if (this.board[start])
                 return;
             let color = raw[start];
-            let kind = ["str", "vit", "def", "spd", "none", "dream"][color];
+            let kind = ["none", "dream", "str", "vit", "def", "spd"][color];
             let heap = [start];
-            let fig = new Figure(this, kind, this.figures.length);
-            this.figures.push(fig);
+            let fig = new Fig(this, kind, this.figs.length);
+            this.figs.push(fig);
             while (heap.length > 0) {
                 let cur = heap.pop();
                 this.board[cur] = fig;
@@ -1072,11 +1081,11 @@ var app = (function () {
                 def: 10,
                 spd: 30
             });
-            for (let beast of this.figures) {
-                beast.reached = false;
-                beast.resolved = false;
-                beast.battle = null;
-                if (beast.dream) {
+            for (let fig of this.figs) {
+                fig.reached = false;
+                fig.resolved = false;
+                fig.battle = null;
+                if (fig.dream) {
                     this.dreamsTotal++;
                 }
             }
@@ -1084,30 +1093,35 @@ var app = (function () {
                 this.board[i].reach();
             }
             for (let id of turns) {
-                if (this.figures[id])
-                    this.figures[id].resolve();
+                if (this.figs[id])
+                    this.figs[id].resolve();
             }
+            this.saveAuto();
             this.stateChanged();
         }
-        attackBeastAt(cell) {
-            let beast = this.board[cell];
-            if (beast.frozen)
-                return;
-            if (!beast)
-                return;
-            if (beast.possible) {
-                beast.resolve();
+        attackFigAt(cell) {
+            let fig = this.board[cell];
+            if (!fig)
+                return null;
+            if (fig.frozen)
+                return null;
+            if (!fig)
+                return null;
+            if (fig.possible) {
+                fig.resolve();
                 this.score -= 3;
-                this.turns.push(beast.id);
+                this.turns.push(fig.id);
                 this.stateChanged();
                 this.saveAuto();
+                return fig;
             }
+            return null;
         }
         saveAuto() {
             this.save(this.persist);
         }
         updateBattles() {
-            for (let b of this.figures) {
+            for (let b of this.figs) {
                 if (b.reached && !b.resolved) {
                     b.updateBattler();
                 }
@@ -1120,23 +1134,24 @@ var app = (function () {
         reset() {
             this.play();
         }
-        logBeastAt(cell) {
-            let beast = this.board[cell];
-            beast.updateBattler();
-            console.log(beast);
+        logFigAt(cell) {
+            let fig = this.board[cell];
+            fig.updateBattler();
+            console.log(fig);
         }
-        beast(id) {
-            return this.figures[id];
+        fig(id) {
+            return this.figs[id];
         }
-        beastAt(cell) {
+        figAt(cell) {
             return this.board[cell];
         }
         stateChanged() {
             this.updateBattles();
+            conf.set(this.conf);
             board.set(this.board);
             this.dreamsResolved = 0;
             this.dreamsFrozen = 0;
-            for (let f of this.figures) {
+            for (let f of this.figs) {
                 if (f.dream) {
                     if (f.resolved)
                         this.dreamsResolved++;
@@ -1145,8 +1160,6 @@ var app = (function () {
                 }
             }
             this.complete = this.dreamsResolved + this.dreamsFrozen == this.dreamsTotal;
-            console.log(this);
-            console.log(this);
             setGameState({
                 turns: this.turns.length,
                 score: this.score,
@@ -1178,7 +1191,7 @@ var app = (function () {
             for (let stat of Battler.statsOrder) {
                 d[stat] = 0;
             }
-            for (let f of this.figures) {
+            for (let f of this.figs) {
                 if (f.resolved)
                     d[f.kind] += f.cells.length;
             }
@@ -1189,6 +1202,29 @@ var app = (function () {
             params.append("goal", this.score.toString());
             let url = window.location.host + window.location.pathname + "?" + params.toString();
             return url;
+        }
+        static create() {
+            let urlConf;
+            let defaultConf = { width: 30, height: 80, seed: 1 };
+            if (document.location.search) {
+                let usp = new URLSearchParams(document.location.search.substr(1));
+                urlConf = Object.fromEntries(usp.entries());
+            }
+            let auto = "auto";
+            let raw = Game.loadRaw(auto);
+            if (!raw) {
+                let game = new Game(urlConf || defaultConf, auto);
+                return game;
+            }
+            let confMatches = !urlConf || compareObjects(raw.conf, urlConf);
+            let game = new Game(urlConf, auto);
+            if (confMatches) {
+                game.load(raw);
+            }
+            return game;
+        }
+        colorAt(cell) {
+            return this.figAt(cell).color;
         }
     }
 
@@ -1225,7 +1261,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     };
 
     /* src\App.svelte generated by Svelte v3.6.7 */
-    const { Object: Object_1, console: console_1 } = globals;
+    const { Object: Object_1 } = globals;
 
     const file = "src\\App.svelte";
 
@@ -1237,43 +1273,49 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
 
     function get_each_context_1(ctx, list, i) {
     	const child_ctx = Object_1.create(ctx);
-    	child_ctx.beast = list[i];
+    	child_ctx.fig = list[i];
     	child_ctx.i = i;
     	return child_ctx;
     }
 
     function get_each_context_2(ctx, list, i) {
     	const child_ctx = Object_1.create(ctx);
-    	child_ctx.field = list[i];
+    	child_ctx.anim = list[i];
     	return child_ctx;
     }
 
     function get_each_context_3(ctx, list, i) {
+    	const child_ctx = Object_1.create(ctx);
+    	child_ctx.field = list[i];
+    	return child_ctx;
+    }
+
+    function get_each_context_4(ctx, list, i) {
     	const child_ctx = Object_1.create(ctx);
     	child_ctx.stat = list[i];
     	child_ctx.i = i;
     	return child_ctx;
     }
 
-    function get_each_context_4(ctx, list, i) {
+    function get_each_context_5(ctx, list, i) {
     	const child_ctx = Object_1.create(ctx);
     	child_ctx.move = list[i];
     	return child_ctx;
     }
 
-    function get_each_context_5(ctx, list, i) {
+    function get_each_context_6(ctx, list, i) {
     	const child_ctx = Object_1.create(ctx);
     	child_ctx.field = list[i];
     	child_ctx.i = i;
     	return child_ctx;
     }
 
-    // (176:0) {#if enemy && enemy.battle && enemy.battler}
-    function create_if_block_6(ctx) {
+    // (227:0) {#if enemy && enemy.battle && enemy.battler}
+    function create_if_block_5(ctx) {
     	var div, div_style_value, div_class_value;
 
     	function select_block_type(ctx) {
-    		if (ctx.enemy.frozen) return create_if_block_7;
+    		if (ctx.enemy.frozen) return create_if_block_6;
     		return create_else_block_2;
     	}
 
@@ -1286,7 +1328,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			if_block.c();
     			attr(div, "style", div_style_value = ctx.analysisPosition());
     			attr(div, "class", div_class_value = "analysis " + (!ctx.moveTimeout ? 'analysis-shown' : ''));
-    			add_location(div, file, 176, 2, 3580);
+    			add_location(div, file, 227, 2, 5153);
     		},
 
     		m: function mount(target, anchor) {
@@ -1323,29 +1365,29 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (189:4) {:else}
+    // (240:4) {:else}
     function create_else_block_2(ctx) {
     	var div0, t0, div1, t1, div2, t2;
 
-    	var each_value_5 = Battler.statsOrder;
+    	var each_value_6 = Battler.statsOrder;
 
     	var each_blocks_1 = [];
 
-    	for (var i = 0; i < each_value_5.length; i += 1) {
-    		each_blocks_1[i] = create_each_block_5(get_each_context_5(ctx, each_value_5, i));
+    	for (var i = 0; i < each_value_6.length; i += 1) {
+    		each_blocks_1[i] = create_each_block_6(get_each_context_6(ctx, each_value_6, i));
     	}
 
-    	var each_value_4 = ctx.enemy.battle.log;
+    	var each_value_5 = ctx.enemy.battle.log;
 
     	var each_blocks = [];
 
-    	for (var i = 0; i < each_value_4.length; i += 1) {
-    		each_blocks[i] = create_each_block_4(get_each_context_4(ctx, each_value_4, i));
+    	for (var i = 0; i < each_value_5.length; i += 1) {
+    		each_blocks[i] = create_each_block_5(get_each_context_5(ctx, each_value_5, i));
     	}
 
-    	var if_block0 = (ctx.enemy.battle.outcome != 'win' || !ctx.$abridgedAnalysis) && create_if_block_9(ctx);
+    	var if_block0 = (ctx.enemy.battle.outcome != 'win' || !ctx.$abridgedAnalysis) && create_if_block_8(ctx);
 
-    	var if_block1 = (ctx.enemy.battle.outcome == 'win') && create_if_block_8(ctx);
+    	var if_block1 = (ctx.enemy.battle.outcome == 'win') && create_if_block_7(ctx);
 
     	return {
     		c: function create() {
@@ -1368,11 +1410,11 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t2 = space();
     			if (if_block1) if_block1.c();
     			attr(div0, "class", "enemy");
-    			add_location(div0, file, 189, 6, 3900);
+    			add_location(div0, file, 240, 6, 5473);
     			attr(div1, "class", "combat-log");
-    			add_location(div1, file, 197, 6, 4199);
+    			add_location(div1, file, 248, 6, 5772);
     			attr(div2, "class", "battle-outcome");
-    			add_location(div2, file, 231, 6, 5419);
+    			add_location(div2, file, 282, 6, 6992);
     		},
 
     		m: function mount(target, anchor) {
@@ -1398,15 +1440,15 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
 
     		p: function update(changed, ctx) {
     			if (changed.fg || changed.Battler || changed.bigNum || changed.enemy || changed.$abridgedAnalysis) {
-    				each_value_5 = Battler.statsOrder;
+    				each_value_6 = Battler.statsOrder;
 
-    				for (var i = 0; i < each_value_5.length; i += 1) {
-    					const child_ctx = get_each_context_5(ctx, each_value_5, i);
+    				for (var i = 0; i < each_value_6.length; i += 1) {
+    					const child_ctx = get_each_context_6(ctx, each_value_6, i);
 
     					if (each_blocks_1[i]) {
     						each_blocks_1[i].p(changed, child_ctx);
     					} else {
-    						each_blocks_1[i] = create_each_block_5(child_ctx);
+    						each_blocks_1[i] = create_each_block_6(child_ctx);
     						each_blocks_1[i].c();
     						each_blocks_1[i].m(div0, null);
     					}
@@ -1415,19 +1457,19 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				for (; i < each_blocks_1.length; i += 1) {
     					each_blocks_1[i].d(1);
     				}
-    				each_blocks_1.length = each_value_5.length;
+    				each_blocks_1.length = each_value_6.length;
     			}
 
     			if (changed.$abridgedAnalysis || changed.enemy || changed.bigNum || changed.fg) {
-    				each_value_4 = ctx.enemy.battle.log;
+    				each_value_5 = ctx.enemy.battle.log;
 
-    				for (var i = 0; i < each_value_4.length; i += 1) {
-    					const child_ctx = get_each_context_4(ctx, each_value_4, i);
+    				for (var i = 0; i < each_value_5.length; i += 1) {
+    					const child_ctx = get_each_context_5(ctx, each_value_5, i);
 
     					if (each_blocks[i]) {
     						each_blocks[i].p(changed, child_ctx);
     					} else {
-    						each_blocks[i] = create_each_block_4(child_ctx);
+    						each_blocks[i] = create_each_block_5(child_ctx);
     						each_blocks[i].c();
     						each_blocks[i].m(div1, null);
     					}
@@ -1436,14 +1478,14 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				for (; i < each_blocks.length; i += 1) {
     					each_blocks[i].d(1);
     				}
-    				each_blocks.length = each_value_4.length;
+    				each_blocks.length = each_value_5.length;
     			}
 
     			if (ctx.enemy.battle.outcome != 'win' || !ctx.$abridgedAnalysis) {
     				if (if_block0) {
     					if_block0.p(changed, ctx);
     				} else {
-    					if_block0 = create_if_block_9(ctx);
+    					if_block0 = create_if_block_8(ctx);
     					if_block0.c();
     					if_block0.m(div2, t2);
     				}
@@ -1456,7 +1498,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				if (if_block1) {
     					if_block1.p(changed, ctx);
     				} else {
-    					if_block1 = create_if_block_8(ctx);
+    					if_block1 = create_if_block_7(ctx);
     					if_block1.c();
     					if_block1.m(div2, null);
     				}
@@ -1491,8 +1533,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (182:4) {#if enemy.frozen}
-    function create_if_block_7(ctx) {
+    // (233:4) {#if enemy.frozen}
+    function create_if_block_6(ctx) {
     	var div0, raw0_value = lang.FROZEN, t, div1, raw1_value = lang.tip_frozen;
 
     	return {
@@ -1501,9 +1543,9 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t = space();
     			div1 = element("div");
     			attr(div0, "class", "enemy");
-    			add_location(div0, file, 182, 6, 3738);
+    			add_location(div0, file, 233, 6, 5311);
     			attr(div1, "class", "combat-log");
-    			add_location(div1, file, 185, 6, 3808);
+    			add_location(div1, file, 236, 6, 5381);
     		},
 
     		m: function mount(target, anchor) {
@@ -1526,8 +1568,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (191:8) {#each Battler.statsOrder as field, i}
-    function create_each_block_5(ctx) {
+    // (242:8) {#each Battler.statsOrder as field, i}
+    function create_each_block_6(ctx) {
     	var raw_value = ctx.i == 0 ? '' : '&nbsp;', raw_before, raw_after, t0, span0, t1_value = ctx.$abridgedAnalysis ? '' : ctx.field, t1, t2, span1, t3_value = ctx.bigNum(ctx.enemy.battler[ctx.field]), t3, span1_class_value;
 
     	return {
@@ -1541,9 +1583,9 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			span1 = element("span");
     			t3 = text(t3_value);
     			attr(span0, "class", "field-name");
-    			add_location(span0, file, 192, 10, 4021);
+    			add_location(span0, file, 243, 10, 5594);
     			attr(span1, "class", span1_class_value = ctx.fg[ctx.field]);
-    			add_location(span1, file, 193, 10, 4097);
+    			add_location(span1, file, 244, 10, 5670);
     		},
 
     		m: function mount(target, anchor) {
@@ -1586,12 +1628,12 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (204:10) {:else}
+    // (255:10) {:else}
     function create_else_block_4(ctx) {
     	var div, nobr, span0, t0_value = ctx.move.a.isProto ? 'Made' : 'Took', t0, span0_class_value, t1, span1, t2_value = ctx.bigNum(ctx.move.damageRoll), t2, span1_class_value, t3, span2, t4_value = ctx.bigNum(ctx.move.def), t4, span2_class_value, t5;
 
     	function select_block_type_3(ctx) {
-    		if (ctx.move.damage <= 0) return create_if_block_12;
+    		if (ctx.move.damage <= 0) return create_if_block_11;
     		return create_else_block_5;
     	}
 
@@ -1613,14 +1655,14 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t5 = space();
     			if_block.c();
     			attr(span0, "class", span0_class_value = ctx.move.a.isProto ? 'attacking' : 'defending');
-    			add_location(span0, file, 206, 16, 4558);
+    			add_location(span0, file, 257, 16, 6131);
     			attr(span1, "class", span1_class_value = ctx.fg.str);
-    			add_location(span1, file, 209, 16, 4712);
+    			add_location(span1, file, 260, 16, 6285);
     			attr(span2, "class", span2_class_value = ctx.fg.def);
-    			add_location(span2, file, 211, 16, 4802);
-    			add_location(nobr, file, 205, 14, 4534);
+    			add_location(span2, file, 262, 16, 6375);
+    			add_location(nobr, file, 256, 14, 6107);
     			attr(div, "class", "complete-log");
-    			add_location(div, file, 204, 12, 4492);
+    			add_location(div, file, 255, 12, 6065);
     		},
 
     		m: function mount(target, anchor) {
@@ -1685,12 +1727,12 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (200:10) {#if $abridgedAnalysis}
-    function create_if_block_10(ctx) {
+    // (251:10) {#if $abridgedAnalysis}
+    function create_if_block_9(ctx) {
     	var span, span_class_value;
 
     	function select_block_type_2(ctx) {
-    		if (ctx.move.damage > 0) return create_if_block_11;
+    		if (ctx.move.damage > 0) return create_if_block_10;
     		return create_else_block_3;
     	}
 
@@ -1702,7 +1744,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			span = element("span");
     			if_block.c();
     			attr(span, "class", span_class_value = ctx.move.a.isProto ? 'attacking' : 'defending');
-    			add_location(span, file, 200, 12, 4314);
+    			add_location(span, file, 251, 12, 5887);
     		},
 
     		m: function mount(target, anchor) {
@@ -1737,7 +1779,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (216:16) {:else}
+    // (267:16) {:else}
     function create_else_block_5(ctx) {
     	var t0, span0, t1_value = ctx.bigNum(ctx.move.damage), t1, span0_class_value, t2, span1, t3_value = ctx.bigNum(ctx.move.hp), t3, span1_class_value, t4;
 
@@ -1751,9 +1793,9 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t3 = text(t3_value);
     			t4 = text("\r\n                  hp left");
     			attr(span0, "class", span0_class_value = ctx.fg.str);
-    			add_location(span0, file, 217, 18, 5032);
+    			add_location(span0, file, 268, 18, 6605);
     			attr(span1, "class", span1_class_value = ctx.move.a.isProto ? 'attacking' : 'defending');
-    			add_location(span1, file, 219, 18, 5125);
+    			add_location(span1, file, 270, 18, 6698);
     		},
 
     		m: function mount(target, anchor) {
@@ -1796,8 +1838,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (213:16) {#if move.damage <= 0}
-    function create_if_block_12(ctx) {
+    // (264:16) {#if move.damage <= 0}
+    function create_if_block_11(ctx) {
     	var t0, span, t1, span_class_value;
 
     	return {
@@ -1806,7 +1848,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			span = element("span");
     			t1 = text("no damage");
     			attr(span, "class", span_class_value = ctx.fg.def);
-    			add_location(span, file, 214, 18, 4929);
+    			add_location(span, file, 265, 18, 6502);
     		},
 
     		m: function mount(target, anchor) {
@@ -1830,7 +1872,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (202:52) {:else}
+    // (253:52) {:else}
     function create_else_block_3(ctx) {
     	var t;
 
@@ -1853,8 +1895,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (202:14) {#if move.damage > 0}
-    function create_if_block_11(ctx) {
+    // (253:14) {#if move.damage > 0}
+    function create_if_block_10(ctx) {
     	var t_value = ctx.bigNum(ctx.move.hp), t;
 
     	return {
@@ -1880,12 +1922,12 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (199:8) {#each enemy.battle.log as move}
-    function create_each_block_4(ctx) {
+    // (250:8) {#each enemy.battle.log as move}
+    function create_each_block_5(ctx) {
     	var t, span;
 
     	function select_block_type_1(ctx) {
-    		if (ctx.$abridgedAnalysis) return create_if_block_10;
+    		if (ctx.$abridgedAnalysis) return create_if_block_9;
     		return create_else_block_4;
     	}
 
@@ -1897,7 +1939,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			if_block.c();
     			t = space();
     			span = element("span");
-    			add_location(span, file, 227, 10, 5370);
+    			add_location(span, file, 278, 10, 6943);
     		},
 
     		m: function mount(target, anchor) {
@@ -1930,8 +1972,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (233:8) {#if enemy.battle.outcome != 'win' || !$abridgedAnalysis}
-    function create_if_block_9(ctx) {
+    // (284:8) {#if enemy.battle.outcome != 'win' || !$abridgedAnalysis}
+    function create_if_block_8(ctx) {
     	var span, t_value = ctx.enemy.battle.outcome.toUpperCase(), t, span_class_value;
 
     	return {
@@ -1939,7 +1981,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			span = element("span");
     			t = text(t_value);
     			attr(span, "class", span_class_value = "battle-" + ctx.enemy.battle.outcome);
-    			add_location(span, file, 233, 10, 5526);
+    			add_location(span, file, 284, 10, 7099);
     		},
 
     		m: function mount(target, anchor) {
@@ -1965,8 +2007,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (238:8) {#if enemy.battle.outcome == 'win'}
-    function create_if_block_8(ctx) {
+    // (289:8) {#if enemy.battle.outcome == 'win'}
+    function create_if_block_7(ctx) {
     	var t0_value = ctx.$abridgedAnalysis ? '' : ctx.enemy.xp[0], t0, t1, span0, t2_value = (ctx.$abridgedAnalysis ? '' : '+') + ctx.bigNum(ctx.enemy.xp[1]), t2, span0_class_value, t3, span1, t4, t5_value = ctx.enemy.score, t5;
 
     	return {
@@ -1980,9 +2022,9 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t4 = text("+ ");
     			t5 = text(t5_value);
     			attr(span0, "class", span0_class_value = ctx.fg[ctx.enemy.xp[0]]);
-    			add_location(span0, file, 239, 10, 5761);
-    			attr(span1, "class", "rainbow");
-    			add_location(span1, file, 243, 10, 5907);
+    			add_location(span0, file, 290, 10, 7334);
+    			attr(span1, "class", ctx.rainbow);
+    			add_location(span1, file, 294, 10, 7480);
     		},
 
     		m: function mount(target, anchor) {
@@ -2026,7 +2068,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (278:2) {:else}
+    // (329:2) {:else}
     function create_else_block_1(ctx) {
     	var div, t;
 
@@ -2035,7 +2077,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			div = element("div");
     			t = text(ctx.page);
     			attr(div, "class", "page-title");
-    			add_location(div, file, 278, 4, 6873);
+    			add_location(div, file, 329, 4, 8446);
     		},
 
     		m: function mount(target, anchor) {
@@ -2057,16 +2099,16 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (261:2) {#if page == 'board'}
-    function create_if_block_5(ctx) {
+    // (312:2) {#if page == 'board'}
+    function create_if_block_4(ctx) {
     	var button0, t1, div, t2, button1, t3, button1_data_tooltip_value, dispose;
 
-    	var each_value_3 = ctx.statsOrder;
+    	var each_value_4 = ctx.statsOrder;
 
     	var each_blocks = [];
 
-    	for (var i = 0; i < each_value_3.length; i += 1) {
-    		each_blocks[i] = create_each_block_3(get_each_context_3(ctx, each_value_3, i));
+    	for (var i = 0; i < each_value_4.length; i += 1) {
+    		each_blocks[i] = create_each_block_4(get_each_context_4(ctx, each_value_4, i));
     	}
 
     	return {
@@ -2084,12 +2126,12 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			button1 = element("button");
     			t3 = text("ability");
     			attr(button0, "class", "hotkey");
-    			add_location(button0, file, 261, 4, 6359);
+    			add_location(button0, file, 312, 4, 7932);
     			attr(div, "class", "prota");
-    			add_location(div, file, 262, 4, 6417);
+    			add_location(div, file, 313, 4, 7990);
     			attr(button1, "class", "hotkey wip tooltip-bottom");
     			button1.dataset.tooltip = button1_data_tooltip_value = lang.tip_ability;
-    			add_location(button1, file, 274, 4, 6752);
+    			add_location(button1, file, 325, 4, 8325);
     			dispose = listen(button0, "click", ctx.undo);
     		},
 
@@ -2109,15 +2151,15 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
 
     		p: function update(changed, ctx) {
     			if (changed.fg || changed.statsOrder || changed.lang || changed.bigNum || changed.$state) {
-    				each_value_3 = ctx.statsOrder;
+    				each_value_4 = ctx.statsOrder;
 
-    				for (var i = 0; i < each_value_3.length; i += 1) {
-    					const child_ctx = get_each_context_3(ctx, each_value_3, i);
+    				for (var i = 0; i < each_value_4.length; i += 1) {
+    					const child_ctx = get_each_context_4(ctx, each_value_4, i);
 
     					if (each_blocks[i]) {
     						each_blocks[i].p(changed, child_ctx);
     					} else {
-    						each_blocks[i] = create_each_block_3(child_ctx);
+    						each_blocks[i] = create_each_block_4(child_ctx);
     						each_blocks[i].c();
     						each_blocks[i].m(div, null);
     					}
@@ -2126,7 +2168,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				for (; i < each_blocks.length; i += 1) {
     					each_blocks[i].d(1);
     				}
-    				each_blocks.length = each_value_3.length;
+    				each_blocks.length = each_value_4.length;
     			}
     		},
 
@@ -2149,8 +2191,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (264:6) {#each statsOrder as stat, i}
-    function create_each_block_3(ctx) {
+    // (315:6) {#each statsOrder as stat, i}
+    function create_each_block_4(ctx) {
     	var raw_value = ctx.i > 0 ? '&nbsp' : '', raw_before, raw_after, t0, span0, t1_value = ctx.stat, t1, t2, span1, t3_value = ctx.bigNum(ctx.$state[ctx.stat]), t3, t4, span1_class_value, span1_data_tooltip_value;
 
     	return {
@@ -2165,10 +2207,10 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t3 = text(t3_value);
     			t4 = space();
     			attr(span0, "class", "field-name");
-    			add_location(span0, file, 266, 8, 6523);
+    			add_location(span0, file, 317, 8, 8096);
     			attr(span1, "class", span1_class_value = "" + ctx.fg[ctx.stat] + " tooltip-bottom");
     			span1.dataset.tooltip = span1_data_tooltip_value = lang['tip_' + ctx.stat];
-    			add_location(span1, file, 267, 8, 6571);
+    			add_location(span1, file, 318, 8, 8144);
     		},
 
     		m: function mount(target, anchor) {
@@ -2208,9 +2250,9 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (284:4) {#if page == 'board'}
-    function create_if_block_4(ctx) {
-    	var span0, t1, span1, t2_value = ctx.bigNum(ctx.$state.score), t2, span1_data_tooltip_value, t3, span2, t5, span3, t6_value = ctx.Math.round(ctx.$state.turns), t6;
+    // (335:4) {#if page == 'board'}
+    function create_if_block_3(ctx) {
+    	var span0, t1, span1, t2_value = ctx.bigNum(ctx.$state.score), t2, span1_class_value, span1_data_tooltip_value, t3, span2, t5, span3, t6_value = ctx.Math.round(ctx.$state.turns), t6;
 
     	return {
     		c: function create() {
@@ -2226,13 +2268,13 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			span3 = element("span");
     			t6 = text(t6_value);
     			attr(span0, "class", "field-name");
-    			add_location(span0, file, 284, 6, 7004);
-    			attr(span1, "class", "rainbow tooltip-bottom");
+    			add_location(span0, file, 335, 6, 8577);
+    			attr(span1, "class", span1_class_value = "" + ctx.rainbow + " tooltip-bottom");
     			span1.dataset.tooltip = span1_data_tooltip_value = lang.tip_score;
-    			add_location(span1, file, 285, 6, 7049);
+    			add_location(span1, file, 336, 6, 8622);
     			attr(span2, "class", "field-name");
-    			add_location(span2, file, 288, 6, 7171);
-    			add_location(span3, file, 289, 6, 7216);
+    			add_location(span2, file, 339, 6, 8746);
+    			add_location(span3, file, 340, 6, 8791);
     		},
 
     		m: function mount(target, anchor) {
@@ -2271,8 +2313,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (314:4) {#each statsOrder as field}
-    function create_each_block_2(ctx) {
+    // (366:4) {#each statsOrder as field}
+    function create_each_block_3(ctx) {
     	var t0, t1_value = ctx.bigNum(ctx.$debrief[ctx.field]), t1, t2, span, t3_value = ctx.field, t3, span_class_value, t4;
 
     	return {
@@ -2284,7 +2326,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t3 = text(t3_value);
     			t4 = text("\r\n      cells ");
     			attr(span, "class", span_class_value = ctx.fg[ctx.field]);
-    			add_location(span, file, 315, 6, 7906);
+    			add_location(span, file, 367, 6, 9486);
     		},
 
     		m: function mount(target, anchor) {
@@ -2318,9 +2360,17 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (340:2) {#if page == 'board'}
+    // (392:2) {#if page == 'board'}
     function create_if_block_2(ctx) {
-    	var div0, t0, div1, t1, input0, t2, input1, t3, input2, t4, button, dispose;
+    	var div1, div0, t0, t1, div2, t2, input0, t3, input1, t4, input2, t5, button, dispose;
+
+    	var each_value_2 = ctx.justResolved;
+
+    	var each_blocks_1 = [];
+
+    	for (var i = 0; i < each_value_2.length; i += 1) {
+    		each_blocks_1[i] = create_each_block_2(get_each_context_2(ctx, each_value_2, i));
+    	}
 
     	var each_value_1 = ctx.$board;
 
@@ -2332,37 +2382,46 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
 
     	return {
     		c: function create() {
+    			div1 = element("div");
     			div0 = element("div");
+
+    			for (var i = 0; i < each_blocks_1.length; i += 1) {
+    				each_blocks_1[i].c();
+    			}
+
+    			t0 = space();
 
     			for (var i = 0; i < each_blocks.length; i += 1) {
     				each_blocks[i].c();
     			}
 
-    			t0 = space();
-    			div1 = element("div");
-    			t1 = text("Seed\r\n      ");
+    			t1 = space();
+    			div2 = element("div");
+    			t2 = text("Seed\r\n      ");
     			input0 = element("input");
-    			t2 = text("\r\n       Width\r\n      ");
+    			t3 = text("\r\n       Width\r\n      ");
     			input1 = element("input");
-    			t3 = text("\r\n       Height\r\n      ");
+    			t4 = text("\r\n       Height\r\n      ");
     			input2 = element("input");
-    			t4 = text("\r\n       \r\n      ");
+    			t5 = text("\r\n       \r\n      ");
     			button = element("button");
     			button.textContent = "play";
-    			attr(div0, "class", "board-table");
-    			set_style(div0, "width", "" + 20 * ctx.$conf.width + "px");
-    			add_location(div0, file, 340, 4, 8502);
-    			add_location(input0, file, 361, 6, 9347);
-    			add_location(input1, file, 363, 6, 9408);
-    			add_location(input2, file, 365, 6, 9471);
-    			add_location(button, file, 367, 6, 9529);
-    			attr(div1, "class", "board-conf");
-    			add_location(div1, file, 359, 4, 9303);
+    			attr(div0, "class", "animations");
+    			add_location(div0, file, 398, 6, 10263);
+    			attr(div1, "class", "board-table");
+    			set_style(div1, "width", "" + 20 * ctx.$conf.width + "px");
+    			add_location(div1, file, 392, 4, 10082);
+    			add_location(input0, file, 415, 6, 10768);
+    			add_location(input1, file, 417, 6, 10829);
+    			add_location(input2, file, 419, 6, 10892);
+    			add_location(button, file, 421, 6, 10950);
+    			attr(div2, "class", "board-conf");
+    			add_location(div2, file, 413, 4, 10724);
 
     			dispose = [
-    				listen(div0, "mousemove", ctx.hoverCell),
-    				listen(div0, "mousedown", ctx.clickCell),
-    				listen(div0, "mouseleave", ctx.unHoverCell),
+    				listen(div1, "mousemove", ctx.hoverCell),
+    				listen(div1, "mousedown", ctx.clickCell),
+    				listen(div1, "mouseleave", ctx.unHoverCell),
     				listen(input0, "input", ctx.input0_input_handler),
     				listen(input1, "input", ctx.input1_input_handler),
     				listen(input2, "input", ctx.input2_input_handler),
@@ -2371,35 +2430,63 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     		},
 
     		m: function mount(target, anchor) {
-    			insert(target, div0, anchor);
+    			insert(target, div1, anchor);
+    			append(div1, div0);
 
-    			for (var i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(div0, null);
+    			for (var i = 0; i < each_blocks_1.length; i += 1) {
+    				each_blocks_1[i].m(div0, null);
     			}
 
-    			insert(target, t0, anchor);
-    			insert(target, div1, anchor);
-    			append(div1, t1);
-    			append(div1, input0);
+    			append(div1, t0);
+
+    			for (var i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].m(div1, null);
+    			}
+
+    			insert(target, t1, anchor);
+    			insert(target, div2, anchor);
+    			append(div2, t2);
+    			append(div2, input0);
 
     			input0.value = ctx.custom.seed;
 
-    			append(div1, t2);
-    			append(div1, input1);
+    			append(div2, t3);
+    			append(div2, input1);
 
     			input1.value = ctx.custom.width;
 
-    			append(div1, t3);
-    			append(div1, input2);
+    			append(div2, t4);
+    			append(div2, input2);
 
     			input2.value = ctx.custom.height;
 
-    			append(div1, t4);
-    			append(div1, button);
+    			append(div2, t5);
+    			append(div2, button);
     		},
 
     		p: function update(changed, ctx) {
-    			if (changed.$board || changed.bg || changed.enemy) {
+    			if (changed.justResolved) {
+    				each_value_2 = ctx.justResolved;
+
+    				for (var i = 0; i < each_value_2.length; i += 1) {
+    					const child_ctx = get_each_context_2(ctx, each_value_2, i);
+
+    					if (each_blocks_1[i]) {
+    						each_blocks_1[i].p(changed, child_ctx);
+    					} else {
+    						each_blocks_1[i] = create_each_block_2(child_ctx);
+    						each_blocks_1[i].c();
+    						each_blocks_1[i].m(div0, null);
+    					}
+    				}
+
+    				for (; i < each_blocks_1.length; i += 1) {
+    					each_blocks_1[i].d(1);
+    				}
+    				each_blocks_1.length = each_value_2.length;
+    			}
+
+    			if (changed.cellClasses || changed.$board || changed.enemy) {
     				each_value_1 = ctx.$board;
 
     				for (var i = 0; i < each_value_1.length; i += 1) {
@@ -2410,7 +2497,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     					} else {
     						each_blocks[i] = create_each_block_1(child_ctx);
     						each_blocks[i].c();
-    						each_blocks[i].m(div0, null);
+    						each_blocks[i].m(div1, null);
     					}
     				}
 
@@ -2421,7 +2508,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			}
 
     			if (changed.$conf) {
-    				set_style(div0, "width", "" + 20 * ctx.$conf.width + "px");
+    				set_style(div1, "width", "" + 20 * ctx.$conf.width + "px");
     			}
 
     			if (changed.custom && (input0.value !== ctx.custom.seed)) input0.value = ctx.custom.seed;
@@ -2431,14 +2518,16 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
 
     		d: function destroy(detaching) {
     			if (detaching) {
-    				detach(div0);
+    				detach(div1);
     			}
+
+    			destroy_each(each_blocks_1, detaching);
 
     			destroy_each(each_blocks, detaching);
 
     			if (detaching) {
-    				detach(t0);
-    				detach(div1);
+    				detach(t1);
+    				detach(div2);
     			}
 
     			run_all(dispose);
@@ -2446,64 +2535,57 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (354:10) {#if beast.dream && !beast.resolved && !beast.frozen}
-    function create_if_block_3(ctx) {
-    	var div;
+    // (400:8) {#each justResolved as anim}
+    function create_each_block_2(ctx) {
+    	var div, div_style_value, addDeathAnimation_action;
 
     	return {
     		c: function create() {
     			div = element("div");
-    			attr(div, "class", "dream");
-    			add_location(div, file, 354, 12, 9216);
+    			attr(div, "class", "death");
+    			attr(div, "style", div_style_value = ctx.anim);
+    			add_location(div, file, 400, 10, 10337);
     		},
 
     		m: function mount(target, anchor) {
     			insert(target, div, anchor);
+    			addDeathAnimation_action = addDeathAnimation.call(null, div) || {};
+    		},
+
+    		p: function update(changed, ctx) {
+    			if ((changed.justResolved) && div_style_value !== (div_style_value = ctx.anim)) {
+    				attr(div, "style", div_style_value);
+    			}
     		},
 
     		d: function destroy(detaching) {
     			if (detaching) {
     				detach(div);
     			}
+
+    			if (addDeathAnimation_action && typeof addDeathAnimation_action.destroy === 'function') addDeathAnimation_action.destroy();
     		}
     	};
     }
 
-    // (347:6) {#each $board as beast, i}
+    // (405:6) {#each $board as fig, i}
     function create_each_block_1(ctx) {
-    	var div, t, div_class_value;
-
-    	var if_block = (ctx.beast.dream && !ctx.beast.resolved && !ctx.beast.frozen) && create_if_block_3();
+    	var div, div_class_value;
 
     	return {
     		c: function create() {
     			div = element("div");
-    			if (if_block) if_block.c();
-    			t = space();
     			attr(div, "id", ctx.i);
-    			attr(div, "class", div_class_value = "cell " + (ctx.beast.dream && !ctx.beast.resolved ? 'bg-none' : ctx.bg[ctx.beast.kind]) + "\r\n          " + (ctx.beast.resolved && !ctx.beast.dream ? 'resolved' : '') + "\r\n          " + (ctx.beast.frozen && !ctx.beast.dream ? 'frozen' : [ctx.beast.possible && ctx.beast == ctx.enemy ? 'aimed' : '', ctx.beast.possible ? 'attackable' : '', ctx.beast.dream || ctx.beast.possible || (ctx.beast.resolved && ctx.beast.reached) ? '' : 'darken'].join(' ')) + "\r\n          ");
-    			add_location(div, file, 347, 8, 8719);
+    			attr(div, "class", div_class_value = "cell " + ctx.cellClasses(ctx.fig) + "\r\n          " + (ctx.fig.possible && !ctx.fig.frozen && ctx.fig == ctx.enemy ? 'aimed' : '') + "\r\n          " + (ctx.fig.dream && !ctx.fig.resolved && !ctx.fig.frozen? 'dream' : ''));
+    			add_location(div, file, 405, 8, 10468);
     		},
 
     		m: function mount(target, anchor) {
     			insert(target, div, anchor);
-    			if (if_block) if_block.m(div, null);
-    			append(div, t);
     		},
 
     		p: function update(changed, ctx) {
-    			if (ctx.beast.dream && !ctx.beast.resolved && !ctx.beast.frozen) {
-    				if (!if_block) {
-    					if_block = create_if_block_3();
-    					if_block.c();
-    					if_block.m(div, t);
-    				}
-    			} else if (if_block) {
-    				if_block.d(1);
-    				if_block = null;
-    			}
-
-    			if ((changed.$board || changed.bg || changed.enemy) && div_class_value !== (div_class_value = "cell " + (ctx.beast.dream && !ctx.beast.resolved ? 'bg-none' : ctx.bg[ctx.beast.kind]) + "\r\n          " + (ctx.beast.resolved && !ctx.beast.dream ? 'resolved' : '') + "\r\n          " + (ctx.beast.frozen && !ctx.beast.dream ? 'frozen' : [ctx.beast.possible && ctx.beast == ctx.enemy ? 'aimed' : '', ctx.beast.possible ? 'attackable' : '', ctx.beast.dream || ctx.beast.possible || (ctx.beast.resolved && ctx.beast.reached) ? '' : 'darken'].join(' ')) + "\r\n          ")) {
+    			if ((changed.$board || changed.enemy) && div_class_value !== (div_class_value = "cell " + ctx.cellClasses(ctx.fig) + "\r\n          " + (ctx.fig.possible && !ctx.fig.frozen && ctx.fig == ctx.enemy ? 'aimed' : '') + "\r\n          " + (ctx.fig.dream && !ctx.fig.resolved && !ctx.fig.frozen? 'dream' : ''))) {
     				attr(div, "class", div_class_value);
     			}
     		},
@@ -2512,17 +2594,15 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			if (detaching) {
     				detach(div);
     			}
-
-    			if (if_block) if_block.d();
     		}
     	};
     }
 
-    // (371:2) {#if page == 'files'}
+    // (425:2) {#if page == 'files'}
     function create_if_block(ctx) {
     	var div, ul;
 
-    	var each_value = [...ctx.$games].sort(func
+    	var each_value = [...ctx.$saves].sort(func
             );
 
     	var each_blocks = [];
@@ -2539,9 +2619,9 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			for (var i = 0; i < each_blocks.length; i += 1) {
     				each_blocks[i].c();
     			}
-    			add_location(ul, file, 372, 6, 9651);
+    			add_location(ul, file, 426, 6, 11072);
     			attr(div, "class", "files");
-    			add_location(div, file, 371, 4, 9624);
+    			add_location(div, file, 425, 4, 11045);
     		},
 
     		m: function mount(target, anchor) {
@@ -2554,8 +2634,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     		},
 
     		p: function update(changed, ctx) {
-    			if (changed.$games || changed.lang) {
-    				each_value = [...ctx.$games].sort(func
+    			if (changed.$saves || changed.lang) {
+    				each_value = [...ctx.$saves].sort(func
             );
 
     				for (var i = 0; i < each_value.length; i += 1) {
@@ -2587,7 +2667,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (385:12) {:else}
+    // (439:12) {:else}
     function create_else_block(ctx) {
     	var span, t_value = ctx.save[0] == 'auto' ? 'AUTO' : '', t;
 
@@ -2595,7 +2675,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     		c: function create() {
     			span = element("span");
     			t = text(t_value);
-    			add_location(span, file, 385, 14, 10105);
+    			add_location(span, file, 439, 14, 11526);
     		},
 
     		m: function mount(target, anchor) {
@@ -2604,7 +2684,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     		},
 
     		p: function update(changed, ctx) {
-    			if ((changed.$games) && t_value !== (t_value = ctx.save[0] == 'auto' ? 'AUTO' : '')) {
+    			if ((changed.$saves) && t_value !== (t_value = ctx.save[0] == 'auto' ? 'AUTO' : '')) {
     				set_data(t, t_value);
     			}
     		},
@@ -2617,7 +2697,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (378:12) {#if save[0] != 'auto' && save[1] != '#NEW'}
+    // (432:12) {#if save[0] != 'auto' && save[1] != '#NEW'}
     function create_if_block_1(ctx) {
     	var button, t, button_data_tooltip_value, dispose;
 
@@ -2631,7 +2711,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t = text("X");
     			attr(button, "class", "tooltip-bottom");
     			button.dataset.tooltip = button_data_tooltip_value = lang.tip_erase;
-    			add_location(button, file, 378, 14, 9876);
+    			add_location(button, file, 432, 14, 11297);
     			dispose = listen(button, "click", click_handler_3);
     		},
 
@@ -2654,7 +2734,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	};
     }
 
-    // (374:8) {#each [...$games].sort((a, b) =>            Number(a[0].substr(5)) < Number(b[0].substr(5)) ? -1 : 1          ) as save}
+    // (428:8) {#each [...$saves].sort((a, b) =>            Number(a[0].substr(5)) < Number(b[0].substr(5)) ? -1 : 1          ) as save}
     function create_each_block(ctx) {
     	var li, t0, button, t1_value = ctx.save[1] == '#NEW' ? 'Save in a new slot' : ctx.save[1], t1, t2, dispose;
 
@@ -2679,8 +2759,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t1 = text(t1_value);
     			t2 = space();
     			attr(button, "class", "save");
-    			add_location(button, file, 387, 12, 10184);
-    			add_location(li, file, 376, 10, 9798);
+    			add_location(button, file, 441, 12, 11605);
+    			add_location(li, file, 430, 10, 11219);
     			dispose = listen(button, "click", click_handler_4);
     		},
 
@@ -2706,7 +2786,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				}
     			}
 
-    			if ((changed.$games) && t1_value !== (t1_value = ctx.save[1] == '#NEW' ? 'Save in a new slot' : ctx.save[1])) {
+    			if ((changed.$saves) && t1_value !== (t1_value = ctx.save[1] == '#NEW' ? 'Save in a new slot' : ctx.save[1])) {
     				set_data(t1, t1_value);
     			}
     		},
@@ -2723,26 +2803,26 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     }
 
     function create_fragment(ctx) {
-    	var t0, div5, div1, button0, t2, div0, button1, t4, button2, t6, button3, t8, div2, t9, t10, div3, t11, div4, t12, div7, raw_value = { board: lang.what, files: lang.what_files }[ctx.page], raw_after, t13, div6, t14, button4, div7_class_value, t16, div10, div8, h4, t18, big, t19, span0, t20_value = ctx.$debrief.score, t20, t21, br0, t22, br1, t23, t24_value = ctx.$debrief.dreamsResolved, t24, t25, span1, t27, t28, t29_value = ctx.$debrief.turns, t29, t30, t31, br2, t32, small, t33, br3, t34, br4, t35, u, a, t36_value = ctx.$debrief.challengeUrl, t36, a_href_value, t37, br5, t38, br6, t39, div9, button5, t41, button6, div10_class_value, t43, div11, t44, dispose;
+    	var t0, div5, div1, button0, t2, div0, button1, t4, button2, t6, button3, t8, div2, t9, t10, div3, t11, div4, t12, div7, raw_value = { board: lang.what, files: lang.what_files }[ctx.page], raw_after, t13, div6, t14, button4, div7_class_value, t16, div10, div8, h4, t18, big, t19, span0, t20_value = ctx.$debrief.score, t20, t21, br0, t22, br1, t23, t24_value = ctx.$debrief.dreamsResolved, t24, t25, span1, t26, t27, t28, t29_value = ctx.$debrief.turns, t29, t30, t31, br2, t32, small, t33, br3, t34, br4, t35, u, a, t36_value = ctx.$debrief.challengeUrl, t36, a_href_value, t37, br5, t38, br6, t39, div9, button5, t41, button6, div10_class_value, t43, div11, t44, dispose;
 
-    	var if_block0 = (ctx.enemy && ctx.enemy.battle && ctx.enemy.battler) && create_if_block_6(ctx);
+    	var if_block0 = (ctx.enemy && ctx.enemy.battle && ctx.enemy.battler) && create_if_block_5(ctx);
 
     	function select_block_type_4(ctx) {
-    		if (ctx.page == 'board') return create_if_block_5;
+    		if (ctx.page == 'board') return create_if_block_4;
     		return create_else_block_1;
     	}
 
     	var current_block_type = select_block_type_4(ctx);
     	var if_block1 = current_block_type(ctx);
 
-    	var if_block2 = (ctx.page == 'board') && create_if_block_4(ctx);
+    	var if_block2 = (ctx.page == 'board') && create_if_block_3(ctx);
 
-    	var each_value_2 = ctx.statsOrder;
+    	var each_value_3 = ctx.statsOrder;
 
     	var each_blocks = [];
 
-    	for (var i = 0; i < each_value_2.length; i += 1) {
-    		each_blocks[i] = create_each_block_2(get_each_context_2(ctx, each_value_2, i));
+    	for (var i = 0; i < each_value_3.length; i += 1) {
+    		each_blocks[i] = create_each_block_3(get_each_context_3(ctx, each_value_3, i));
     	}
 
     	var if_block3 = (ctx.page == 'board') && create_if_block_2(ctx);
@@ -2802,8 +2882,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			t24 = text(t24_value);
     			t25 = space();
     			span1 = element("span");
-    			span1.textContent = " dream";
-    			t27 = text(" cells\r\n    * 100\r\n    ");
+    			t26 = text(" dream");
+    			t27 = text("\r\n    cells * 100\r\n    ");
 
     			for (var i = 0; i < each_blocks.length; i += 1) {
     				each_blocks[i].c();
@@ -2840,52 +2920,52 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			if (if_block3) if_block3.c();
     			t44 = space();
     			if (if_block4) if_block4.c();
-    			add_location(button0, file, 252, 4, 6060);
-    			add_location(button1, file, 254, 6, 6117);
-    			add_location(button2, file, 255, 6, 6168);
-    			add_location(button3, file, 256, 6, 6228);
+    			add_location(button0, file, 303, 4, 7633);
+    			add_location(button1, file, 305, 6, 7690);
+    			add_location(button2, file, 306, 6, 7741);
+    			add_location(button3, file, 307, 6, 7801);
     			attr(div0, "class", "dropdown");
-    			add_location(div0, file, 253, 4, 6087);
+    			add_location(div0, file, 304, 4, 7660);
     			attr(div1, "class", "menu");
-    			add_location(div1, file, 251, 2, 6036);
+    			add_location(div1, file, 302, 2, 7609);
     			attr(div2, "class", "spacer");
-    			add_location(div2, file, 259, 2, 6306);
+    			add_location(div2, file, 310, 2, 7879);
     			attr(div3, "class", "spacer");
-    			add_location(div3, file, 281, 2, 6924);
+    			add_location(div3, file, 332, 2, 8497);
     			attr(div4, "class", "turns");
-    			add_location(div4, file, 282, 2, 6950);
+    			add_location(div4, file, 333, 2, 8523);
     			attr(div5, "class", "header");
-    			add_location(div5, file, 250, 0, 6012);
-    			add_location(div6, file, 296, 2, 7413);
-    			add_location(button4, file, 297, 2, 7424);
+    			add_location(div5, file, 301, 0, 7585);
+    			add_location(div6, file, 347, 2, 8988);
+    			add_location(button4, file, 348, 2, 8999);
     			attr(div7, "class", div7_class_value = "bottom panel " + (ctx.$what ? '' : 'panel-hidden-ne'));
-    			add_location(div7, file, 294, 0, 7288);
-    			add_location(h4, file, 302, 4, 7595);
-    			attr(span0, "class", "rainbow");
-    			add_location(span0, file, 305, 6, 7648);
-    			add_location(big, file, 303, 4, 7621);
-    			add_location(br0, file, 308, 4, 7718);
-    			add_location(br1, file, 309, 4, 7730);
-    			attr(span1, "class", "rainbow");
-    			add_location(span1, file, 311, 4, 7773);
-    			add_location(div8, file, 301, 2, 7584);
-    			add_location(br2, file, 320, 2, 8024);
-    			add_location(br3, file, 324, 4, 8156);
-    			add_location(br4, file, 325, 4, 8168);
-    			add_location(small, file, 321, 2, 8034);
+    			add_location(div7, file, 345, 0, 8863);
+    			add_location(h4, file, 354, 4, 9175);
+    			attr(span0, "class", ctx.rainbow);
+    			add_location(span0, file, 357, 6, 9228);
+    			add_location(big, file, 355, 4, 9201);
+    			add_location(br0, file, 360, 4, 9298);
+    			add_location(br1, file, 361, 4, 9310);
+    			attr(span1, "class", ctx.rainbow);
+    			add_location(span1, file, 363, 4, 9353);
+    			add_location(div8, file, 353, 2, 9164);
+    			add_location(br2, file, 372, 2, 9604);
+    			add_location(br3, file, 376, 4, 9736);
+    			add_location(br4, file, 377, 4, 9748);
+    			add_location(small, file, 373, 2, 9614);
     			attr(a, "href", a_href_value = ctx.$debrief.challengeUrl);
-    			add_location(a, file, 328, 4, 8199);
-    			add_location(br5, file, 329, 4, 8264);
-    			add_location(br6, file, 330, 4, 8276);
-    			add_location(button5, file, 332, 6, 8328);
-    			add_location(button6, file, 333, 6, 8373);
+    			add_location(a, file, 380, 4, 9779);
+    			add_location(br5, file, 381, 4, 9844);
+    			add_location(br6, file, 382, 4, 9856);
+    			add_location(button5, file, 384, 6, 9908);
+    			add_location(button6, file, 385, 6, 9953);
     			attr(div9, "class", "buttons-horizontal");
-    			add_location(div9, file, 331, 4, 8288);
-    			add_location(u, file, 327, 2, 8190);
-    			attr(div10, "class", div10_class_value = "center panel " + (ctx.$state.complete && ctx.page=="board" ? '' : 'panel-hidden-n'));
-    			add_location(div10, file, 300, 0, 7495);
+    			add_location(div9, file, 383, 4, 9868);
+    			add_location(u, file, 379, 2, 9770);
+    			attr(div10, "class", div10_class_value = "center panel " + (ctx.$state.complete && ctx.page == 'board' ? '' : 'panel-hidden-n'));
+    			add_location(div10, file, 351, 0, 9070);
     			attr(div11, "class", "main");
-    			add_location(div11, file, 338, 0, 8453);
+    			add_location(div11, file, 390, 0, 10033);
 
     			dispose = [
     				listen(button1, "click", ctx.toggleWhat),
@@ -2948,6 +3028,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			append(div8, t24);
     			append(div8, t25);
     			append(div8, span1);
+    			append(span1, t26);
     			append(div8, t27);
 
     			for (var i = 0; i < each_blocks.length; i += 1) {
@@ -2990,7 +3071,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				if (if_block0) {
     					if_block0.p(changed, ctx);
     				} else {
-    					if_block0 = create_if_block_6(ctx);
+    					if_block0 = create_if_block_5(ctx);
     					if_block0.c();
     					if_block0.m(t0.parentNode, t0);
     				}
@@ -3014,7 +3095,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				if (if_block2) {
     					if_block2.p(changed, ctx);
     				} else {
-    					if_block2 = create_if_block_4(ctx);
+    					if_block2 = create_if_block_3(ctx);
     					if_block2.c();
     					if_block2.m(div4, null);
     				}
@@ -3041,15 +3122,15 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     			}
 
     			if (changed.fg || changed.statsOrder || changed.bigNum || changed.$debrief) {
-    				each_value_2 = ctx.statsOrder;
+    				each_value_3 = ctx.statsOrder;
 
-    				for (var i = 0; i < each_value_2.length; i += 1) {
-    					const child_ctx = get_each_context_2(ctx, each_value_2, i);
+    				for (var i = 0; i < each_value_3.length; i += 1) {
+    					const child_ctx = get_each_context_3(ctx, each_value_3, i);
 
     					if (each_blocks[i]) {
     						each_blocks[i].p(changed, child_ctx);
     					} else {
-    						each_blocks[i] = create_each_block_2(child_ctx);
+    						each_blocks[i] = create_each_block_3(child_ctx);
     						each_blocks[i].c();
     						each_blocks[i].m(div8, t28);
     					}
@@ -3058,7 +3139,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				for (; i < each_blocks.length; i += 1) {
     					each_blocks[i].d(1);
     				}
-    				each_blocks.length = each_value_2.length;
+    				each_blocks.length = each_value_3.length;
     			}
 
     			if ((changed.$debrief) && t29_value !== (t29_value = ctx.$debrief.turns)) {
@@ -3073,7 +3154,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     				attr(a, "href", a_href_value);
     			}
 
-    			if ((changed.$state || changed.page) && div10_class_value !== (div10_class_value = "center panel " + (ctx.$state.complete && ctx.page=="board" ? '' : 'panel-hidden-n'))) {
+    			if ((changed.$state || changed.page) && div10_class_value !== (div10_class_value = "center panel " + (ctx.$state.complete && ctx.page == 'board' ? '' : 'panel-hidden-n'))) {
     				attr(div10, "class", div10_class_value);
     			}
 
@@ -3141,8 +3222,18 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
 
     function customize() {}
 
-    function goTo(params) {
-      window.location.search = "?" + new URLSearchParams(params).toString();
+    function goTo(conf) {
+      window.location.search = "?" + new URLSearchParams(conf).toString();
+    }
+
+    function addDeathAnimation(node) {
+      node.animate(
+        [
+          { opacity: 1, transform: "translate(0) rotate3d(1, 0, 0, 0deg)" },
+          { opacity: 0, transform: `translate(${Math.random()*60 - 30}px, -70px) rotate3d(${Math.random()*180 - 90}, ${Math.random()*180 - 90}, ${Math.random()*180 - 90}, ${Math.random()*180 - 90}deg)` }
+        ],
+        { duration: 200, easing: "ease-out", fill: "forwards" }
+      );
     }
 
     function func(a, b) {
@@ -3150,8 +3241,10 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     }
 
     function instance($$self, $$props, $$invalidate) {
-    	let $what, $abridgedAnalysis, $state, $debrief, $conf, $board, $games;
+    	let $game, $what, $abridgedAnalysis, $state, $debrief, $conf, $board, $saves;
 
+    	validate_store(game, 'game');
+    	subscribe($$self, game, $$value => { $game = $$value; $$invalidate('$game', $game); });
     	validate_store(what, 'what');
     	subscribe($$self, what, $$value => { $what = $$value; $$invalidate('$what', $what); });
     	validate_store(abridgedAnalysis, 'abridgedAnalysis');
@@ -3164,8 +3257,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     	subscribe($$self, conf, $$value => { $conf = $$value; $$invalidate('$conf', $conf); });
     	validate_store(board, 'board');
     	subscribe($$self, board, $$value => { $board = $$value; $$invalidate('$board', $board); });
-    	validate_store(games, 'games');
-    	subscribe($$self, games, $$value => { $games = $$value; $$invalidate('$games', $games); });
+    	validate_store(saves, 'saves');
+    	subscribe($$self, saves, $$value => { $saves = $$value; $$invalidate('$saves', $saves); });
 
     	
 
@@ -3173,25 +3266,46 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
       let page = "board";
       let hovered;
       let mousePosition = [0, 0];
-      let { game } = $$props;
 
-      let colors = game.colors;
+      let colors = $game.colors;
       let fg = {};
       let bg = {};
       for (let c in colors) {
         fg[c] = "fg-" + colors[c]; $$invalidate('fg', fg);
-        bg[c] = "bg-" + colors[c]; $$invalidate('bg', bg);
-      }
+        bg[c] = "bg-" + colors[c];  }
+
+      let chrome = navigator.userAgent.search("Chrome") >= 0;
+      let rainbow = "rainbow" + (chrome ? " rainbow-animation" : "");
 
       let custom = {};
+
       const statsOrder = "str vit def spd".split(" ");
 
       conf.subscribe(v => Object.assign(custom, v));
 
+      let justResolved = [];
+
+      function animateDeath(fig) {
+        if(!fig)
+          return;
+        let color = fig.color;
+        let added = [];
+        for (let cell of fig.cells) {
+          added.push(
+            `left:${(cell % $game.width) * 20}px;top:${Math.floor(
+          cell / $game.width
+        ) * 20}px;background:${color}`
+          );
+        }
+        $$invalidate('justResolved', justResolved = justResolved.length>20?added:justResolved.concat(added));
+      }
+
       function clickCell(e) {
         if (e.button != 0) return;
-        if (e.shiftKey) game.logBeastAt(e.target.id);
-        else game.attackBeastAt(e.target.id);
+        if (e.shiftKey) $game.logFigAt(e.target.id);
+        else {
+          animateDeath($game.attackFigAt(e.target.id));
+        }
       }
 
       function hoverCell(e) {
@@ -3199,17 +3313,13 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
       }
 
       function showInfo() {
-        let beast = game.beastAt(hovered);
+        let fig = $game.figAt(hovered);
         hovered = null;
-        if (!beast) {
-          $$invalidate('enemy', enemy = null);
-          return;
-        }
-        if (!beast || beast.resolved) {
+        if (!fig || fig.resolved) {
           $$invalidate('enemy', enemy = null);
         } else {
-          beast.updateBattler();
-          $$invalidate('enemy', enemy = beast);
+          fig.updateBattler();
+          $$invalidate('enemy', enemy = fig);
         }
       }
 
@@ -3246,7 +3356,8 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
       };
 
       function undo() {
-        game.undo();
+        $game.undo();
+        justResolved.length = 0; $$invalidate('justResolved', justResolved);
       }
 
       let bigNumLetters = " K M B t q Q s S o n d U D T Qt Qd Sd St O N v c".split(
@@ -3267,7 +3378,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
 
       function playCustom() {
         for (let k in custom) { custom[k] = +custom[k]; $$invalidate('custom', custom); }
-        game.start(custom);
+        $game.start(custom);
         goTo(custom);
       }
 
@@ -3277,20 +3388,41 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
 
       function deleteSave(id) {
         console.log("del", id);
-        game.erase(id);
+        $game.erase(id);
         updateSaves();
       }
 
       function loadSave(id) {
         console.log("load", id);
-        game.load(id);
-        open("board");
+        $game.load(id);
+        goTo($game.conf);
       }
 
       function newSave(id) {
-        game.save(id);
+        $game.save(id);
         updateSaves();
         console.log("new", id);
+      }
+
+      function cellClasses(fig) {
+        let classes = [
+          fig.dream && !fig.resolved ? "bg-none" : bg[fig.kind],
+          fig.resolved && !fig.dream ? "resolved" : ""
+        ];
+
+        if (fig.frozen) {
+          classes.push("frozen");
+        } else {
+          classes = classes.concat([
+            fig.dream && fig.resolved && chrome ? "rainbow-animation" : "",
+            fig.possible ? "attackable" : "",
+            fig.dream || fig.possible || (fig.resolved && fig.reached)
+              ? ""
+              : "darken"
+          ]);
+        }
+        classes = classes.filter(s => s != "").join(" ");
+        return classes;
       }
 
       window.onkeydown = e => {
@@ -3313,11 +3445,6 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
             return;
         }
       };
-
-    	const writable_props = ['game'];
-    	Object_1.keys($$props).forEach(key => {
-    		if (!writable_props.includes(key) && !key.startsWith('$$')) console_1.warn(`<App> was created with unknown prop '${key}'`);
-    	});
 
     	function div_binding($$value) {
     		binding_callbacks[$$value ? 'unshift' : 'push'](() => {
@@ -3362,18 +3489,14 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     		return (save[1] == '#NEW' ? newSave(save[0]) : loadSave(save[0]));
     	}
 
-    	$$self.$set = $$props => {
-    		if ('game' in $$props) $$invalidate('game', game = $$props.game);
-    	};
-
     	return {
     		enemy,
     		page,
-    		game,
     		fg,
-    		bg,
+    		rainbow,
     		custom,
     		statsOrder,
+    		justResolved,
     		clickCell,
     		hoverCell,
     		unHoverCell,
@@ -3388,6 +3511,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     		deleteSave,
     		loadSave,
     		newSave,
+    		cellClasses,
     		Math,
     		$what,
     		$abridgedAnalysis,
@@ -3395,7 +3519,7 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     		$debrief,
     		$conf,
     		$board,
-    		$games,
+    		$saves,
     		div_binding,
     		click_handler,
     		click_handler_1,
@@ -3411,37 +3535,15 @@ You attack as often as your SPD is, deal damage to enemy HP at random between 0%
     class App extends SvelteComponentDev {
     	constructor(options) {
     		super(options);
-    		init(this, options, instance, create_fragment, safe_not_equal, ["game"]);
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-    		if (ctx.game === undefined && !('game' in props)) {
-    			console_1.warn("<App> was created without expected prop 'game'");
-    		}
-    	}
-
-    	get game() {
-    		throw new Error("<App>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
-    	}
-
-    	set game(value) {
-    		throw new Error("<App>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+    		init(this, options, instance, create_fragment, safe_not_equal, []);
     	}
     }
 
     window.onload = function(){    
 
-      let conf = {};
-      if(document.location.search){
-        let usp = new URLSearchParams(document.location.search.substr(1));
-        conf = Object.fromEntries(usp.entries());
-      } else {
-        conf = {width:50, height:100, seed:5};
-      }
-
-      app = new App({
+    app = new App({
         target: document.body,
-        props:{game: new Game(conf, "auto")}
+        props:{game: Game.create()}
       });
 
     };

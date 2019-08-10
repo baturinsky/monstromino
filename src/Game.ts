@@ -1,6 +1,6 @@
 import * as store from "./store";
 import Twister from "mersennetwister";
-import Figure from "./Figure";
+import Fig from "./Fig";
 import Battler from "./Battler";
 import { compareObjects } from "./Util"
 
@@ -17,12 +17,21 @@ class Config {
   seed: number;
 }
 
+const colorsConst ={
+  str: "red",
+  vit: "green",
+  def: "yellow",
+  spd: "blue",
+  none: "none",
+  dream: "rainbow"
+};
+
 export default class Game {
   twister = new Twister();
 
   rni: () => number;
-  board: Figure[] = [];
-  figures: Figure[] = [];
+  board: Fig[] = [];
+  figs: Fig[] = [];
   deltas: number[];
   dreamsResolved: number;
   dreamsFrozen: number;
@@ -42,54 +51,43 @@ export default class Game {
   }
 
   get colors(){
-    return {
-      str: "red",
-      vit: "green",
-      def: "yellow",
-      spd: "blue",
-      none: "none",
-      dream: "rainbow"
-    };
+    return colorsConst;
   }
 
   constructor(conf?: Config, persist?: string) {
-    if (conf) this.conf = conf;
-    if (persist) this.loadOrGenerate(persist);    
+    if (conf) this.conf = conf;    
+    if (persist) this.persist = persist;
+    store.game.set(this);
   }
 
-  loadOrGenerate(path: string) {
-    this.persist = path;
-    let conf = this.conf;
-    let loadSuccess = this.load(path)
-    if (loadSuccess){
-      if(!compareObjects(this.conf, conf)){
-        loadSuccess = false;
-        this.conf = conf;
-      }
-    }
-  
-    if (!loadSuccess) {
-      this.generate();
-      this.play();
-    }
-
-    store.conf.set(this.conf);
-    return this;
-  }
 
   config(c: Config) {
     this.conf = c;
     return this;
   }
 
-  load(path: string): boolean {
-    if (!path) return;
+  load(src: string | any): boolean {    
+    if(typeof src == "string"){
+      let data = Game.loadRaw(src);
+      if(data) {
+        this.deserialize(data);
+        return true;
+      }
+      return false;  
+    } else {
+      this.deserialize(src);
+    }
+  }
+
+  static loadRaw(path: string){
+    if (!path) 
+      return null;
     let data = localStorage.getItem(path);
     if (data && data != "undefined") {
-      this.deserialize(JSON.parse(data));
-      return true;
-    }
-    return false;
+      return JSON.parse(data);
+    } else {
+      return null;
+    } 
   }
 
   save(path?: string) {
@@ -132,20 +130,25 @@ export default class Game {
     this.play(data.turns);
   }
 
+  get dreamFrequency(){
+    return 200;
+  }
+
   generate() {
     this.turns = [];
-    this.figures = [];
+    this.figs = [];
     this.twister.seed(this.conf.seed);
     this.rni = this.twister.int.bind(this.twister);
     this.deltas = [-1, 1, -this.width, +this.width];
 
     let raw = [...Array(this.cellsNumber)].map(a =>
-      weightedRandom([1, 1, 1, 1, 1], this.rni)
+      weightedRandom([1, 0, 1, 1, 1, 1], this.rni)
     );
 
-    for (let y = 0; y < this.height; y += 5 + (this.rni() % 5)) {
-      let x = this.rni() % this.width;
-      raw[y * this.width + x] = 5;
+    for (let i = 0; i < this.cellsNumber; i += Math.floor(this.dreamFrequency/2) + this.rni() % this.dreamFrequency) {
+      if(i==0)
+        continue;
+      raw[i] = 1;
     }
 
     this.board = raw.map(_ => null);
@@ -159,11 +162,11 @@ export default class Game {
     if (this.board[start]) return;
 
     let color = raw[start];
-    let kind = ["str", "vit", "def", "spd", "none", "dream"][color];
+    let kind = ["none", "dream", "str", "vit", "def", "spd"][color];
     let heap = [start];
 
-    let fig = new Figure(this, kind, this.figures.length);
-    this.figures.push(fig);
+    let fig = new Fig(this, kind, this.figs.length);
+    this.figs.push(fig);
 
     while (heap.length > 0) {
       let cur = heap.pop();
@@ -207,11 +210,11 @@ export default class Game {
       spd: 30
     });
 
-    for (let beast of this.figures) {
-      beast.reached = false;
-      beast.resolved = false;
-      beast.battle = null;
-      if(beast.dream){
+    for (let fig of this.figs) {
+      fig.reached = false;
+      fig.resolved = false;
+      fig.battle = null;
+      if(fig.dream){
         this.dreamsTotal++;
       }
     }
@@ -221,23 +224,28 @@ export default class Game {
     }
 
     for (let id of turns) {
-      if (this.figures[id]) this.figures[id].resolve();
+      if (this.figs[id]) this.figs[id].resolve();
     }
 
+    this.saveAuto()
     this.stateChanged();
   }
 
-  attackBeastAt(cell: number) {
-    let beast = this.board[cell];
-    if (beast.frozen) return;
-    if (!beast) return;
-    if (beast.possible) {
-      beast.resolve();
+  attackFigAt(cell: number): Fig {
+    let fig = this.board[cell];
+    if(!fig)
+      return null;
+    if (fig.frozen) return null;
+    if (!fig) return null;
+    if (fig.possible) {
+      fig.resolve();
       this.score -= 3;
-      this.turns.push(beast.id);
+      this.turns.push(fig.id);
       this.stateChanged();
       this.saveAuto();
+      return fig;
     }
+    return null;
   }
 
   saveAuto(){
@@ -245,7 +253,7 @@ export default class Game {
   }
 
   updateBattles() {
-    for (let b of this.figures) {
+    for (let b of this.figs) {
       if (b.reached && !b.resolved) {
         b.updateBattler();
       }
@@ -260,26 +268,27 @@ export default class Game {
     this.play();
   }
 
-  logBeastAt(cell: number) {
-    let beast = this.board[cell];
-    beast.updateBattler();
-    console.log(beast);
+  logFigAt(cell: number) {
+    let fig = this.board[cell];
+    fig.updateBattler();
+    console.log(fig);
   }
 
-  beast(id: number) {
-    return this.figures[id];
+  fig(id: number) {
+    return this.figs[id];
   }
 
-  beastAt(cell: number) {
+  figAt(cell: number) {
     return this.board[cell];
   }
 
   stateChanged() {
     this.updateBattles();
+    store.conf.set(this.conf)
     store.board.set(this.board);
     this.dreamsResolved = 0
     this.dreamsFrozen = 0
-    for(let f of this.figures){
+    for(let f of this.figs){
       if(f.dream){
         if(f.resolved)
           this.dreamsResolved++;
@@ -290,9 +299,6 @@ export default class Game {
 
 
     this.complete = this.dreamsResolved + this.dreamsFrozen == this.dreamsTotal
-    console.log(this);
-
-    console.log(this);
     store.setGameState({
       turns: this.turns.length,
       score: this.score,
@@ -328,7 +334,7 @@ export default class Game {
     for(let stat of Battler.statsOrder){
       d[stat] = 0;
     }
-    for(let f of this.figures){
+    for(let f of this.figs){
       if(f.resolved)
         d[f.kind] += f.cells.length;
     }
@@ -342,4 +348,35 @@ export default class Game {
     return url;
   }
 
+  static create(){
+    let urlConf;
+
+    let defaultConf = {width:30, height:80, seed:1};
+    if(document.location.search){
+      let usp = new URLSearchParams(document.location.search.substr(1));
+      urlConf = Object.fromEntries(usp.entries());
+    }
+
+    let auto = "auto";
+    let raw = Game.loadRaw(auto);
+
+    if(!raw){
+      let game = new Game(urlConf || defaultConf, auto)
+      return game;
+    }
+
+    let confMatches = !urlConf || compareObjects(raw.conf, urlConf);
+    
+    let game = new Game(urlConf, auto)
+
+    if(confMatches){      
+      game.load(raw);
+    }
+  
+    return game;  
+  }
+
+  colorAt(cell){
+    return this.figAt(cell).color;
+  }
 }

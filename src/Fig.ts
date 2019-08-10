@@ -2,9 +2,9 @@ import Battler from "./Battler";
 import Game from "./Game";
 import Battle from "./Battle";
 
-export default class Figure {
+export default class Fig {
   cells: number[] = [];
-  neighbors: Figure[] = [];
+  neighbors: Fig[] = [];
   depth: number;
   last: number;
   bottomRow:boolean;
@@ -15,7 +15,7 @@ export default class Figure {
 
   constructor(public game: Game, public kind: string, public id: number) {}
 
-  addNeighbor(n: Figure) {
+  addNeighbor(n: Fig) {
     if (n && !this.neighbors.includes(n)) {
       this.neighbors.push(n);
       n.neighbors.push(this);
@@ -97,11 +97,15 @@ export default class Figure {
   }
 
   get frozen(){
-    return this.game.frozen(this.last)
+    return !this.resolved && this.game.frozen(this.last)
   }
 
   get dream(){
     return this.kind == "dream";
+  }
+
+  get color(){
+    return this.game.colors[this.kind]
   }
 
 }

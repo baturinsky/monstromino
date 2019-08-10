@@ -11,8 +11,9 @@
     ],
     "lib": [
       "webworker",
-      "es6",
+      "esnext",
       "dom",
+      "dom.iterable",
       "scripthost"
     ]
   }

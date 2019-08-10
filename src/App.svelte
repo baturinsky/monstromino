@@ -1,6 +1,7 @@
 <script>
   import {
-    games,
+    saves,
+    game,
     debrief,
     state,
     conf,
@@ -17,9 +18,8 @@
   let page = "board";
   let hovered;
   let mousePosition = [0, 0];
-  export let game;
 
-  let colors = game.colors;
+  let colors = $game.colors;
   let fg = {};
   let bg = {};
   for (let c in colors) {
@@ -27,15 +27,38 @@
     bg[c] = "bg-" + colors[c];
   }
 
+  let chrome = navigator.userAgent.search("Chrome") >= 0;
+  let rainbow = "rainbow" + (chrome ? " rainbow-animation" : "");
+
   let custom = {};
+
   const statsOrder = "str vit def spd".split(" ");
 
   conf.subscribe(v => Object.assign(custom, v));
 
+  let justResolved = [];
+
+  function animateDeath(fig) {
+    if(!fig)
+      return;
+    let color = fig.color;
+    let added = [];
+    for (let cell of fig.cells) {
+      added.push(
+        `left:${(cell % $game.width) * 20}px;top:${Math.floor(
+          cell / $game.width
+        ) * 20}px;background:${color}`
+      );
+    }
+    justResolved = justResolved.length>20?added:justResolved.concat(added);
+  }
+
   function clickCell(e) {
     if (e.button != 0) return;
-    if (e.shiftKey) game.logBeastAt(e.target.id);
-    else game.attackBeastAt(e.target.id);
+    if (e.shiftKey) $game.logFigAt(e.target.id);
+    else {
+      animateDeath($game.attackFigAt(e.target.id));
+    }
   }
 
   function hoverCell(e) {
@@ -43,17 +66,13 @@
   }
 
   function showInfo() {
-    let beast = game.beastAt(hovered);
+    let fig = $game.figAt(hovered);
     hovered = null;
-    if (!beast) {
-      enemy = null;
-      return;
-    }
-    if (!beast || beast.resolved) {
+    if (!fig || fig.resolved) {
       enemy = null;
     } else {
-      beast.updateBattler();
-      enemy = beast;
+      fig.updateBattler();
+      enemy = fig;
     }
   }
 
@@ -94,11 +113,12 @@
   };
 
   function undo() {
-    game.undo();
+    $game.undo();
+    justResolved.length = 0;
   }
 
   function reset() {
-    game.reset();
+    $game.reset();
   }
 
   let bigNumLetters = " K M B t q Q s S o n d U D T Qt Qd Sd St O N v c".split(
@@ -119,13 +139,13 @@
     if (p == "files") updateSaves();
   }
 
-  function goTo(params) {
-    window.location.search = "?" + new URLSearchParams(params).toString();
+  function goTo(conf) {
+    window.location.search = "?" + new URLSearchParams(conf).toString();
   }
 
   function playCustom() {
     for (let k in custom) custom[k] = +custom[k];
-    game.start(custom);
+    $game.start(custom);
     goTo(custom);
   }
 
@@ -135,20 +155,51 @@
 
   function deleteSave(id) {
     console.log("del", id);
-    game.erase(id);
+    $game.erase(id);
     updateSaves();
   }
 
   function loadSave(id) {
     console.log("load", id);
-    game.load(id);
-    open("board");
+    $game.load(id);
+    goTo($game.conf);
   }
 
   function newSave(id) {
-    game.save(id);
+    $game.save(id);
     updateSaves();
     console.log("new", id);
+  }
+
+  function cellClasses(fig) {
+    let classes = [
+      fig.dream && !fig.resolved ? "bg-none" : bg[fig.kind],
+      fig.resolved && !fig.dream ? "resolved" : ""
+    ];
+
+    if (fig.frozen) {
+      classes.push("frozen");
+    } else {
+      classes = classes.concat([
+        fig.dream && fig.resolved && chrome ? "rainbow-animation" : "",
+        fig.possible ? "attackable" : "",
+        fig.dream || fig.possible || (fig.resolved && fig.reached)
+          ? ""
+          : "darken"
+      ]);
+    }
+    classes = classes.filter(s => s != "").join(" ");
+    return classes;
+  }
+
+  function addDeathAnimation(node) {
+    node.animate(
+      [
+        { opacity: 1, transform: "translate(0) rotate3d(1, 0, 0, 0deg)" },
+        { opacity: 0, transform: `translate(${Math.random()*60 - 30}px, -70px) rotate3d(${Math.random()*180 - 90}, ${Math.random()*180 - 90}, ${Math.random()*180 - 90}, ${Math.random()*180 - 90}deg)` }
+      ],
+      { duration: 200, easing: "ease-out", fill: "forwards" }
+    );
   }
 
   window.onkeydown = e => {
@@ -241,7 +292,7 @@
             {($abridgedAnalysis ? '' : '+') + bigNum(enemy.xp[1])}
           </span>
           score
-          <span class="rainbow">+ {enemy.score}</span>
+          <span class={rainbow}>+ {enemy.score}</span>
         {/if}
       </div>
     {/if}
@@ -283,7 +334,7 @@
   <div class="turns">
     {#if page == 'board'}
       <span class="field-name">score</span>
-      <span class="rainbow tooltip-bottom" data-tooltip={lang.tip_score}>
+      <span class="{rainbow} tooltip-bottom" data-tooltip={lang.tip_score}>
         {bigNum($state.score)}
       </span>
       <span class="field-name">turns</span>
@@ -298,19 +349,20 @@
   <button on:click={e => ($what = false)}>Ok, got it</button>
 </div>
 
-<div class="center panel {$state.complete && page=="board" ? '' : 'panel-hidden-n'}">
+<div
+  class="center panel {$state.complete && page == 'board' ? '' : 'panel-hidden-n'}">
   <div>
     <h4>Board clear</h4>
     <big>
       Score:
-      <span class="rainbow">{$debrief.score}</span>
+      <span class={rainbow}>{$debrief.score}</span>
     </big>
     =
     <br />
     <br />
     {$debrief.dreamsResolved}
-    <span class="rainbow">&nbsp;dream</span> cells
-    * 100
+    <span class={rainbow}>&nbsp;dream</span>
+    cells * 100
     {#each statsOrder as field}
       + {bigNum($debrief[field])}
       <span class={fg[field]}>{field}</span>
@@ -344,16 +396,18 @@
       on:mousemove={hoverCell}
       on:mousedown={clickCell}
       on:mouseleave={unHoverCell}>
-      {#each $board as beast, i}
+      <div class="animations">
+        {#each justResolved as anim}
+          <div class="death" style={anim} use:addDeathAnimation />
+        {/each}
+      </div>
+
+      {#each $board as fig, i}
         <div
           id={i}
-          class="cell {beast.dream && !beast.resolved ? 'bg-none' : bg[beast.kind]}
-          {beast.resolved && !beast.dream ? 'resolved' : ''}
-          {beast.frozen && !beast.dream ? 'frozen' : [beast.possible && beast == enemy ? 'aimed' : '', beast.possible ? 'attackable' : '', beast.dream || beast.possible || (beast.resolved && beast.reached) ? '' : 'darken'].join(' ')}
-          ">
-          {#if beast.dream && !beast.resolved && !beast.frozen}
-            <div class="dream" />
-          {/if}
+          class="cell {cellClasses(fig)}
+          {fig.possible && !fig.frozen && fig == enemy ? 'aimed' : ''}
+          {fig.dream && !fig.resolved && !fig.frozen? 'dream' : ''}">
         </div>
       {/each}
     </div>
@@ -371,7 +425,7 @@
   {#if page == 'files'}
     <div class="files">
       <ul>
-        {#each [...$games].sort((a, b) =>
+        {#each [...$saves].sort((a, b) =>
           Number(a[0].substr(5)) < Number(b[0].substr(5)) ? -1 : 1
         ) as save}
           <li>

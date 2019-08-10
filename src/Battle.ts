@@ -22,7 +22,7 @@ export default class Battle {
       for (let a of bats) {
         if (a.nextAttack <= this.time && !(a.hp <= 0)) {
           let d = bats[0] == a ? bats[1] : bats[0];
-          this.log.push(this.attack(a, d));
+          this.log.push(a.attack(d, this));
         }
       }
     }
@@ -32,16 +32,6 @@ export default class Battle {
     if (bats[0].hp <= 0) this.outcome = "lose";
     else if (bats[1].hp <= 0) this.outcome = "win";
     else this.outcome = "draw";
-  }
-
-  attack(a: Battler, d: Battler) {
-    a.nextAttack = this.time + a.interval();
-    let damage = 0;
-    let damageRoll =
-      a.str <= 1e6 ? a.rni() % (a.str * 2) : (a.rni() % 2e6) * a.str / 1e6;
-    damage = Math.max(0, damageRoll - d.def);
-    if (damage > 0) d.hp -= damage;
-    return { a, d, damage, damageRoll, def:d.def, hp:d.hp };
   }
 
   over() {

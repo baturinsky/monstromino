@@ -10,6 +10,7 @@ let tween = {
 export const conf = writable({});
 export const debrief = writable({});
 export const board = writable([]);
+export const game = writable(null as Game);
 export let state:Writable<any>;
 
 export function setGameState(o:any){
@@ -26,7 +27,7 @@ what.subscribe(v => localStorage.setItem("what", v ? "yes" : "no"));
 
 export const abridgedAnalysis = writable(false);
 
-export const games = writable([] as string[][]);
+export const saves = writable([] as string[][]);
 
 let savePrefix = "game ";
 let savePrefixLength = savePrefix.length;
@@ -53,7 +54,7 @@ export function updateSaves() {
     }
   }
   list.push([nextSlot(), "#NEW"]);
-  games.set(list);
+  saves.set(list);
 }
 
 export function nextSlot() {
