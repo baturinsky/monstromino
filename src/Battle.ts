@@ -34,6 +34,10 @@ export default class Battle {
     else this.outcome = "draw";
   }
 
+  get enemy(){
+    return this.bats[1];
+  }
+
   over() {
     return this.log.length >= 20 || !this.bats.every(b => b.hp > 0);
   }

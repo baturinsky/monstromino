@@ -1,6 +1,6 @@
 Do:
-Proper custom form
 Confirm window
+Popup messages
 
 Done:
 Tooltip delay
@@ -14,10 +14,17 @@ Kill animation
 Fix:
 
 Maybe:
+Proper custom form
 Canvas field
 Death line
 
 ==Design notes==
+
+Modes:
+  Monstromino
+  Rainbow
+  Life
+  Kami?
 
 Bonuses: 
   Supplies

@@ -12,6 +12,7 @@ export const debrief = writable({});
 export const board = writable([]);
 export const game = writable(null as Game);
 export let state:Writable<any>;
+export let settings = writable({})
 
 export function setGameState(o:any){
   if(!state)
@@ -25,7 +26,8 @@ export const what = writable(true);
 what.set(localStorage.what == "no" ? false : true);
 what.subscribe(v => localStorage.setItem("what", v ? "yes" : "no"));
 
-export const abridgedAnalysis = writable(false);
+settings.set(localStorage.settings?JSON.parse(localStorage.settings):{sound:true, abridgedAnalysis:false})
+settings.subscribe(v=>localStorage.setItem("settings", JSON.stringify(v)))
 
 export const saves = writable([] as string[][]);
 

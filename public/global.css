@@ -1,4 +1,4 @@
-@keyframes rainbow {
+@keyframes dream {
   0% {
     filter:hue-rotate(0deg)
   }
@@ -77,14 +77,17 @@ a:hover[href] {
 .bg-red {
   background: red;
 }
+.bg-orange {
+  background: #f80;
+}
+.bg-yellow {
+  background: gold;
+}
 .bg-green {
   background: #0e0;
 }
 .bg-cyan {
   background: cyan;
-}
-.bg-yellow {
-  background: gold;
 }
 .bg-blue {
   background: #33f;
@@ -92,27 +95,33 @@ a:hover[href] {
 .bg-purple {
   background: magenta;
 }
+.bg-violet {
+  background: #b0f;
+}
 .bg-none {
   background: white;
 }
 
-.bg-rainbow {
+.bg-dream {
   background: cyan;
 }
 
-.rainbow {
+.dream {
   color: cyan;
 }
 
-.rainbow-animation{
-  animation: rainbow 5s infinite;
-}
-
-.rainbow-static{
+.dream-animation{
+  animation: dream 5s infinite;
 }
 
 .fg-red {
   color: red;
+}
+.fg-orange {
+  color: #f80;
+}
+.fg-yellow {
+  color: #fd0;
 }
 .fg-green {
   color: #0b0;
@@ -120,15 +129,19 @@ a:hover[href] {
 .fg-cyan {
   color: #0bb;
 }
-.fg-yellow {
-  color: #fb0;
-}
 .fg-blue {
   color: #33f;
 }
 .fg-purple {
   color: magenta;
 }
+.fg-violet {
+  color: purple;
+}
+.fg-dream {
+  color: #0bb;
+}
+
 .fg-none {
   color: white;
 }
@@ -146,13 +159,25 @@ a:hover[href] {
   width: 20px;
   height: 20px;
   pointer-events: none;
-  /*animation: 1s boom forwards ease-out;*/
+}
+
+.flying-text {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
 }
 
 
 .attackable {
   cursor: pointer;  
+  opacity: 0.9;
 }
+
+.outlined{
+  box-shadow: inset 0px 0px 0px 2px white;
+}
+
 
 .resolved {
   opacity: 0;
@@ -165,7 +190,7 @@ a:hover[href] {
   box-shadow: 0px 0px 5px 5px rgba(255, 255, 255, 1);
 }
 
-.animations{
+.particles{
   position:absolute;
   z-index: 5;
 }
@@ -230,7 +255,7 @@ a:hover[href] {
 
 .analysis {
   position: fixed;
-  z-index: 2;
+  z-index: 10;
   opacity: 0;
   min-width: 300px;
   pointer-events: none;
@@ -256,9 +281,13 @@ a:hover[href] {
   text-align: center;
 }
 
-.enemy {
+.detached-title {
   text-align: center;
-  padding-bottom: 3px;
+  margin-bottom: 3px;
+}
+
+.width-300{
+  width:300px;
 }
 
 .attacking {
@@ -324,7 +353,7 @@ button:active {
   margin-bottom: 3px;
 }
 
-.prota {
+.stats {
   line-height: 36px;
   margin: 0 20px;
 }
@@ -377,16 +406,20 @@ button:hover {
 
 .panel {
   position: fixed;
-  z-index: 100;
+  z-index: 5;
   margin-left: -450px;
   width: 900px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
-  padding: 10px;
   display: flex;
   flex-flow: column;
   transition: 0.5s;
   left: 50%;
+  padding: 10px;
+}
+
+.card{
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
+  padding:5px;
 }
 
 .bottom{
@@ -463,6 +496,7 @@ ul {
 
 .wip {
   text-decoration: line-through;
+  visibility: hidden;
 }
 
 .files button {
@@ -470,14 +504,19 @@ ul {
 }
 
 .darken {
-  filter: brightness(0.4);
+  filter: brightness(0.5);
 }
 
-.frozen {
+.somewhat-darken {
+  filter: brightness(0.7);
+}
+
+
+.wasted {
   filter: grayscale(1);
 }
 
-.dream::after {
+.shiny::after {
   z-index: 1;
   content: " ";
   position: absolute;
@@ -487,14 +526,14 @@ ul {
   pointer-events: none;
 }
 
-.dream:not(.attackable)::after {
-  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), 10px -5px 30px 20px rgba(255, 128, 128, 0.5),
-      -10px -5px 30px 20px rgba(128, 128, 255, 0.5), 0px 13px 30px 20px rgba(128, 255, 128, 0.5);
+.shiny:not(.attackable)::after {
+  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.3), 10px -5px 30px 20px rgba(255, 128, 128, 0.3),
+      -10px -5px 30px 20px rgba(128, 128, 255, 0.3), 0px 13px 30px 20px rgba(128, 255, 128, 0.3);
 }
 
-.dream.attackable::after {
-  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), 10px -5px 30px 30px rgba(255, 128, 128, 0.5),
-      -10px -5px 30px 30px rgba(128, 128, 255, 0.5), 0px 13px 30px 30px rgba(128, 255, 128, 0.5);
+.shiny.attackable::after {
+  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.3), 10px -5px 30px 30px rgba(255, 128, 128, 0.3),
+      -10px -5px 30px 30px rgba(128, 128, 255, 0.3), 0px 13px 30px 30px rgba(128, 255, 128, 0.3);
 }
 
 
@@ -688,4 +727,23 @@ span {
 .tooltip-right:after {
   margin-left: 0;
   margin-bottom: -16px;
+}
+
+.large-font{
+  font-size: large;
+}
+
+.wide-lines{
+  line-height: 18pt;
+}
+
+select{
+  font-size:14pt;
+  border: solid rgba(0, 0, 0, 0.3);
+  border-width: 0px 0px 1px 0px;
+}
+
+.settings{
+  display: flex;
+  flex-flow: column;
 }

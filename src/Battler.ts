@@ -1,10 +1,10 @@
 import Twister from "mersennetwister";
 import Fig from "./Fig";
 import Battle from "./Battle";
+import MonstrominoFig from "./MonstrominoFig";
 
 export default class Battler {
 
-  static readonly statsOrder = "str vit def spd".split(" ")
   static readonly statsBase = {str:10, vit:30, def:10, spd:10, dream:0};
 
   battle: Battle;
@@ -16,11 +16,11 @@ export default class Battler {
   def: number;
   spd: number;
 
-  nextAttack: number;
+  nextAttack: number;3
   hp: number;
 
 
-  constructor(public fig?:Fig){
+  constructor(public fig?:MonstrominoFig){
   }
 
   stats(stats:any){
@@ -68,7 +68,7 @@ export default class Battler {
       );
     }
 
-    this.battle = new Battle([this.fig.game.prota, this]);
+    this.battle = new Battle([this.fig.monstromino.prota, this]);
 
     return this;
   }
@@ -77,7 +77,7 @@ export default class Battler {
     this.nextAttack = battle.time + this.interval();
     let damage = 0;
     let rnd = this.rni();
-    let damageRoll = Math.floor((rnd % 2e6) * this.str / 1e6);
+    let damageRoll = Math.floor(((rnd % 1e6) / 1e6 + 0.5) * this.str);
     damage = Math.max(0, damageRoll - d.def);
     if (damage > 0) d.hp -= damage;
     return { a:this, d, damage, damageRoll, def:d.def, hp:d.hp };

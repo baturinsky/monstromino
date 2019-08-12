@@ -1,8 +1,12 @@
 {
   "version": 3,
   "file": "bundle.css",
-  "sources": [],
-  "sourcesContent": [],
+  "sources": [
+    "..\\src\\What.svelte"
+  ],
+  "sourcesContent": [
+    "<script>\r\n  import { game } from \"./store\";\r\n</script>\r\n\r\n<style>\r\n  td:first-child {\r\n    margin: 10px;\r\n    font-weight: bold;\r\n    vertical-align: top;\r\n  }\r\n</style>\r\n\r\n<table class=\"what\">\r\n\r\n  {#if $game.mode == 'monstromino'}\r\n    <tr>\r\n      <td>Objective</td>\r\n      <td>\r\n        Collect all\r\n        <span style=\"margin:15px\" class=\"shiny\" />\r\n        dreams.\r\n      </td>\r\n    </tr>\r\n\r\n    <tr>\r\n      <td>Method</td>\r\n      <td>\r\n        You can collect a dream or any other figure by clicking it. But only if\r\n        you have a path to it and can defeat it in combat.\r\n      </td>\r\n    </tr>\r\n    <tr>\r\n      <td>Combat</td>\r\n      <td>\r\n        Combat is automatic and you know how it will go beforehand. It's\r\n        calculated based on yours and enemy's stats. Combat is a draw if it's\r\n        not over after 20 attacks.\r\n      </td>\r\n    </tr>\r\n    <tr>\r\n      <td>Stats</td>\r\n      <td>\r\n        Enemy stats depend on their depth, size, color and neighbors. You gain\r\n        stats by defeating enemies. Mouse over your stats and score at the top\r\n        for details of what each of them do.\r\n      </td>\r\n    </tr>\r\n  {/if}\r\n  {#if $game.mode == 'rainbow'}\r\n    <tr>\r\n      <td>Objective</td>\r\n      <td>\r\n        Collect all\r\n        <span style=\"margin:15px\" class=\"shiny\" />\r\n        dreams.        \r\n      </td>\r\n    </tr>\r\n    <tr>\r\n      <td>Method</td>\r\n      <td>\r\n        Colors of figure you can collect are rotated in rainbow order (red&gt;yellow&gt;green&gt;blue&gt;violet).\r\n        <span style=\"dream\">Dream</span> can follow any color and be followed by any color.\r\n      </td>\r\n    </tr>\r\n  {/if}\r\n\r\n</table>\r\n"
+  ],
   "names": [],
-  "mappings": ""
+  "mappings": "AAKE,gBAAE,YAAY,AAAC,CAAC,AACd,MAAM,CAAE,IAAI,CACZ,WAAW,CAAE,IAAI,CACjB,cAAc,CAAE,GAAG,AACrB,CAAC"
 }

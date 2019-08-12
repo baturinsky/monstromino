@@ -1,32 +1,9 @@
 import * as store from "./store";
 import Twister from "mersennetwister";
 import Fig from "./Fig";
-import Battler from "./Battler";
-import { compareObjects } from "./Util";
+import { init } from "svelte/internal";
 
-function weightedRandom(a: number[], rni: () => number) {
-  let roll = (rni() % a.reduce((x, y) => x + y)) - a[0];
-  let i = 0;
-  while (roll >= 0) roll -= a[++i];
-  return i;
-}
-
-class Config {
-  width: number;
-  height: number;
-  seed: number;
-}
-
-const colorsConst = {
-  str: "red",
-  vit: "green",
-  def: "yellow",
-  spd: "blue",
-  none: "none",
-  dream: "rainbow"
-};
-
-export default class Game {
+class Game {
   twister = new Twister();
 
   rni: () => number;
@@ -34,30 +11,24 @@ export default class Game {
   figs: Fig[] = [];
   deltas: number[];
   dreamsResolved: number;
-  dreamsFrozen: number;
+  dreamsWasted: number;
   dreamsTotal: number;
   complete: boolean;
 
-  prota: Battler;
   turns: number[] = [];
 
   score: number;
-  conf: Config;
+  conf: Game.Config;
   public persist: string = null;
 
-  persistIn(path: string) {
-    this.persist = path;
-    return this;
-  }
-
-  get colors() {
-    return colorsConst;
-  }
-
-  constructor(conf?: Config, persist?: string) {
+  constructor(conf?: Game.Config, persist?: string) {
     if (persist) this.persist = persist;
     this.config(conf);
     store.game.set(this);
+  }
+
+  colors(kind:string) {
+    return kind;
   }
 
   start() {
@@ -66,7 +37,7 @@ export default class Game {
     this.saveAuto();
   }
 
-  config(c: Config) {
+  config(c: Game.Config) {
     this.conf = c;
     return this;
   }
@@ -75,7 +46,7 @@ export default class Game {
     if (typeof src == "string") {
       let data = Game.loadRaw(src);
       if (data) {
-        this.deserialize(data);        
+        this.deserialize(data);
         return true;
       }
       return false;
@@ -106,7 +77,7 @@ export default class Game {
   }
 
   get savedFields() {
-    return "conf turns cash".split(" ");
+    return "conf turns".split(" ");
   }
 
   serialized() {
@@ -135,7 +106,14 @@ export default class Game {
   }
 
   get dreamFrequency() {
-    return 200;
+    return 400;
+  }
+
+  cellGenerator(ind: number) {
+    return 0;
+  }
+  get colorsList() {
+    return ["none"];
   }
 
   generate() {
@@ -145,9 +123,9 @@ export default class Game {
     this.rni = this.twister.int.bind(this.twister);
     this.deltas = [-1, 1, -this.width, +this.width];
 
-    let raw = [...Array(this.cellsNumber)].map(a =>
-      weightedRandom([1, 0, 1, 1, 1, 1], this.rni)
-    );
+    let raw = [...Array(this.cellsNumber)].map((a, i) => this.cellGenerator(i));
+
+    console.log(raw);
 
     for (
       let i = 0;
@@ -165,14 +143,18 @@ export default class Game {
     }
   }
 
+  createFig(kind: string, id: number) {
+    return new Fig(this, kind, id);
+  }
+
   populate(raw: number[], start: number) {
     if (this.board[start]) return;
 
     let color = raw[start];
-    let kind = ["none", "dream", "str", "vit", "def", "spd"][color];
+    let kind = this.colorsList[color];
     let heap = [start];
 
-    let fig = new Fig(this, kind, this.figs.length);
+    let fig = this.createFig(kind, this.figs.length);
     this.figs.push(fig);
 
     while (heap.length > 0) {
@@ -203,22 +185,18 @@ export default class Game {
     return Math.floor(cell / this.width);
   }
 
+  init(){
+  }
+
   play(turns: number[] = []) {
+    this.init();
+
     this.turns = turns;
     this.score = 0;
     this.dreamsTotal = 0;
 
-    this.prota = new Battler().stats({
-      str: 20,
-      vit: 50,
-      def: 10,
-      spd: 30
-    });
-
     for (let fig of this.figs) {
-      fig.reached = false;
-      fig.resolved = false;
-      fig.battle = null;
+      fig.reset();
       if (fig.dream) {
         this.dreamsTotal++;
       }
@@ -239,11 +217,10 @@ export default class Game {
   attackFigAt(cell: number): Fig {
     let fig = this.board[cell];
     if (!fig) return null;
-    if (fig.frozen) return null;
+    if (fig.wasted) return null;
     if (!fig) return null;
     if (fig.possible) {
       fig.resolve();
-      this.score -= 3;
       this.turns.push(fig.id);
       this.stateChanged();
       this.saveAuto();
@@ -256,16 +233,22 @@ export default class Game {
     this.save(this.persist);
   }
 
-  updateBattles() {
+  wipeAuto() {
+    localStorage.removeItem(this.persist);
+  }
+
+  updateResolutions() {
     for (let b of this.figs) {
       if (b.reached && !b.resolved) {
-        b.updateBattler();
+        b.updateAnalysis();
       }
     }
   }
 
   undo() {
-    if (this.turns.length > 0) this.play(this.turns.slice(0, -1));
+    if (this.turns.length > 0) {
+      this.play(this.turns.slice(0, -1));
+    }
   }
 
   reset() {
@@ -274,7 +257,7 @@ export default class Game {
 
   logFigAt(cell: number) {
     let fig = this.board[cell];
-    fig.updateBattler();
+    fig.updateAnalysis();
     console.log(fig);
   }
 
@@ -286,50 +269,68 @@ export default class Game {
     return this.board[cell];
   }
 
+  stateExtraFields() {
+    return {};
+  }
+
   stateChanged() {
-    this.updateBattles();
-    store.conf.set(this.conf);
-    store.board.set(this.board);
+    this.updateResolutions();
+
     this.dreamsResolved = 0;
-    this.dreamsFrozen = 0;
+    this.dreamsWasted = 0;
     for (let f of this.figs) {
       if (f.dream) {
         if (f.resolved) this.dreamsResolved++;
-        else if (f.frozen) this.dreamsFrozen++;
+        else if (f.wasted) this.dreamsWasted++;
       }
     }
 
-    this.complete = this.dreamsResolved + this.dreamsFrozen == this.dreamsTotal;
-    store.setGameState({
+    store.conf.set(this.conf);
+    store.board.set(this.board);
+
+    this.complete = this.dreamsResolved + this.dreamsWasted == this.dreamsTotal;
+
+    let state = {
       turns: this.turns.length,
       score: this.score,
-      str: this.prota.str,
-      vit: this.prota.vit,
-      def: this.prota.def,
-      spd: this.prota.spd,
       complete: this.complete ? 1 : 0
-    });
+    };
+
+    Object.assign(state, this.stateExtraFields());
+
+    store.setGameState(state);
 
     store.debrief.set(this.debrief);
   }
 
-  frozen(i: number) {
-    return i < this.width * Math.floor(this.turns.length / 3 - 5);
+  wasted(i: number) {
+    return (
+      i <
+      this.width *
+        Math.floor(
+          (this.turns.length - this.wastedDelay) / this.turnsPerWastedLine
+        )
+    );
+  }
+
+  get turnsPerWastedLine() {
+    return 3;
+  }
+
+  get wastedDelay() {
+    return 20;
   }
 
   get debrief() {
     let d = {
       score: this.score,
       dreamsResolved: this.dreamsResolved,
-      dreamsFrozen: this.dreamsFrozen,
+      dreamsWasted: this.dreamsWasted,
       turns: this.turns.length,
       challengeUrl: this.challengeUrl
     };
-    for (let stat of Battler.statsOrder) {
-      d[stat] = 0;
-    }
     for (let f of this.figs) {
-      if (f.resolved) d[f.kind] += f.cells.length;
+      if (f.resolved) d[f.kind] = (d[f.kind] || 0) + f.cells.length;
     }
     return d;
   }
@@ -342,38 +343,27 @@ export default class Game {
     return url;
   }
 
-  static create() {
-    let urlConf;
-
-    let defaultConf = { width: 30, height: 80, seed: 1 };
-    if (document.location.search) {
-      let usp = new URLSearchParams(document.location.search.substr(1));
-      urlConf = Object.fromEntries(usp.entries());
-    }
-
-    let auto = "auto";
-    let raw = Game.loadRaw(auto);
-
-    if (!raw) {
-      let game = new Game(urlConf || defaultConf, auto);
-      game.start();
-      return game;
-    }
-
-    let confMatches = !urlConf || compareObjects(raw.conf, urlConf);
-
-    let game = new Game(urlConf || raw.conf, auto);
-
-    if (confMatches) {
-      game.load(raw);
-    } else {
-      game.start();
-    }
-
-    return game;
-  }
-
   colorAt(cell) {
     return this.figAt(cell).color;
   }
+
+  get statsOrder() {
+    return [];
+  }
+
+  get mode() {
+    return this.conf.mode;
+  }
 }
+
+module Game {
+  export class Config {
+    mode: string;
+    width: number;
+    height: number;
+    seed: number;
+    goal: number;
+  }
+}
+
+export default Game;

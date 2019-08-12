@@ -1,6 +1,4 @@
-import Battler from "./Battler";
 import Game from "./Game";
-import Battle from "./Battle";
 
 export default class Fig {
   cells: number[] = [];
@@ -10,8 +8,6 @@ export default class Fig {
   bottomRow:boolean;
   resolved = false;
   reached = false;
-  battler: Battler;
-  battle: Battle;
 
   constructor(public game: Game, public kind: string, public id: number) {}
 
@@ -28,63 +24,21 @@ export default class Fig {
     if (this.kind == "none") {
       this.resolve();
     }
+    this.updateAnalysis();
   }
 
   resolve() {
-    if(this.resolved)
-      return;
-    if(!this.battler)
-      this.updateBattler();
+    if (this.resolved) return;
     this.resolved = true;
-    for (let n of this.neighbors) n.reach();    
-    this.loot()
-  }
-
-  updateBattler() {
-    if (this.resolved || this.kind == "none") {
-      this.battler = null;
-      return this;
-    }
-
-    let bonuses = {};
-    
-    for (let stat in Battler.statsBase)
-      bonuses[stat] = 0;
-
-    bonuses[this.kind] = this.cells.length * 4;
-
-    for (let n of this.neighbors) {
-      if (!n.resolved) {
-        bonuses[n.kind] += n.cells.length;
-      }
-    }
-
-    if (!this.battler) this.battler = new Battler(this);
-
-    for (let stat in Battler.statsBase) {
-      this.battler[stat] = Math.floor(
-        (Battler.statsBase[stat] *
-          (10 + bonuses[stat] * 2) *
-          Math.pow(10, 1 + this.depth/20)) /
-          100
-      );
-    }
-
-    this.battle = new Battle([this.game.prota, this.battler]);
-
-    return this;
+    for (let n of this.neighbors) n.reach();
+    this.loot();
   }
 
   get possible() {
-    return this.reached && !this.resolved && this.battle && this.battle.outcome == "win";
-  }
+    return this.reached && !this.resolved
+  }  
 
   loot() {
-    let statName = this.kind;
-    if(statName == "none")
-      return;
-    this.game.prota[statName] += Math.floor(this.battler[statName] / 10);
-    this.game.score += this.score;
   }
 
   get score(){
@@ -92,20 +46,35 @@ export default class Fig {
   }
 
   get xp(){
-    let statName = this.kind;
-    return [statName, Math.floor(this.battler[statName] / 10)];
+    return null;
   }
 
-  get frozen(){
-    return !this.resolved && this.game.frozen(this.last)
+  get wasted(){
+    return !this.resolved && this.game.wasted(this.last)
   }
 
   get dream(){
     return this.kind == "dream";
   }
 
+  get none(){
+    return this.kind == "none";
+  }
+
   get color(){
-    return this.game.colors[this.kind]
+    return this.game.colors(this.kind)
+  }
+
+  reset(){
+    this.reached = false;
+    this.resolved = false;
+  }
+
+  updateAnalysis(){
+  }
+
+  get deathText():any{
+    return null
   }
 
 }
