@@ -11,7 +11,7 @@
     settings
   } from "./store.js";
   import Game from "./Game";
-  import {createGame} from "./Main";
+  import { createGame } from "./Main";
   import lang from "./lang";
   import What from "./What.svelte";
   import Files from "./Files.svelte";
@@ -62,6 +62,7 @@
 
   let chrome = navigator.userAgent.search("Chrome") >= 0;
   let dream = "dream" + (chrome ? " dream-animation" : "");
+  let useTransition = chrome ? " transition" : "";
 
   let custom = {};
 
@@ -78,8 +79,11 @@
       let result = $game.attackFigAt(e.target.id);
       if (result) {
         if ($settings.sound) {
-          let sound = result.dream?bell:paper[Math.floor(Math.random() * 2)];
-          sound.playbackRate = (1 + Math.random() * 1.3) * (result.dream?0.5:1);
+          let sound = result.dream
+            ? bell
+            : paper[Math.floor(Math.random() * 2)];
+          sound.playbackRate =
+            (1 + Math.random() * 1.3) * (result.dream ? 0.5 : 1);
           sound.volume = 0.5 + Math.random() / 2;
           sound.play();
         }
@@ -113,7 +117,7 @@
 
   let analysis;
 
-  let analysisPosition = ""
+  let analysisPosition = "";
 
   function updateAnalysisPosition() {
     let [x, y] = mousePosition;
@@ -140,7 +144,7 @@
       moveTimeout = setTimeout(_ => {
         moveTimeout = null;
       }, 1000);
-    }    
+    }
   };
 
   function undo() {
@@ -161,7 +165,7 @@
   }
 
   function goTo(conf) {
-    window.scrollTo(0,0);
+    window.scrollTo(0, 0);
     window.location.hash = "#" + new URLSearchParams(conf).toString();
     createGame();
   }
@@ -177,8 +181,9 @@
 
   function cellClasses(fig) {
     let classes = [
-      fig.dream?"bg-none":"bg-" + fig.color,
-      fig.resolved && !fig.dream ? "resolved" : ""
+      fig.dream ? "bg-none" : "bg-" + fig.color,
+      fig.resolved && !fig.dream ? "resolved" : "",
+      useTransition
     ];
 
     if (fig.wasted) {
@@ -198,7 +203,7 @@
 
   function cellStyle(fig) {
     if (fig.possibility > 0 && fig.possibility < 1) {
-      let color = fig.dream?colors[fig.color].bg:"rgba(0,0,0,0.3)";
+      let color = fig.dream ? colors[fig.color].bg : "rgba(0,0,0,0.3)";
       return `box-shadow: inset 0px 0px 0px ${10 -
         8 * fig.possibility}px ${color};`;
     } else {
@@ -299,7 +304,7 @@
   let colors = {
     red: [0xff0000, 0xff0000],
     orange: [0xff8000, 0xff8000],
-    yellow: [0xffdd00, 0xFFD700],
+    yellow: [0xffdd00, 0xffd700],
     green: [0x00bb00, 0x00ee00],
     cyan: [0x00bbbb, 0x00ffff],
     blue: [0x0000ff, 0x3333ff],
@@ -308,22 +313,27 @@
     none: [0xffffff, 0xffffff]
   };
 
-  function toStringColor(n){
-    return "#" + ("000000" + n.toString(16)).substr(-6)
+  function toStringColor(n) {
+    return "#" + ("000000" + n.toString(16)).substr(-6);
   }
 
-  for(let k in colors){
-    colors[k] = {fg:toStringColor(colors[k][0]), bg:toStringColor(colors[k][1])};
+  for (let k in colors) {
+    colors[k] = {
+      fg: toStringColor(colors[k][0]),
+      bg: toStringColor(colors[k][1])
+    };
   }
 
   let style = document.createElement("style");
   style.type = "text/css";
   document.getElementsByTagName("head")[0].appendChild(style);
   style.innerHTML = Object.keys(colors)
-    .map(color => `
+    .map(
+      color => `
     .fg-${color} { color: ${colors[color].fg}}
     .bg-${color} { background: ${colors[color].bg}}
-    `)
+    `
+    )
     .join("\n");
 </script>
 
@@ -409,7 +419,7 @@
   {#if page == 'files'}
     {@html lang.what_files}
   {:else}
-    <What {...{ fg, bg, dream }}/>
+    <What {...{ fg, bg, dream }} />
   {/if}
   <div />
   <button on:click={e => ($what = false)}>Ok, got it</button>
@@ -419,7 +429,7 @@
   class="center panel {$state.complete && page == 'board' ? '' : 'panel-hidden'}">
 
   <div class="detached-title card large-font" style="padding:5px">
-    {$state.complete?($state.haveMoves?"Board clear":"You have failed at life"):""}
+    {$state.complete ? ($state.haveMoves ? 'Board clear' : 'You have failed at life') : ''}
   </div>
 
   <div class="card wide-lines">
@@ -453,7 +463,9 @@
     <br />
     <div class="buttons-horizontal">
       <button on:click={undo}>Undo</button>
-      <span style="margin:0px 10px">Or use the form at the bottom for another board/mode.</span>
+      <span style="margin:0px 10px">
+        Or use the form at the bottom for another board/mode.
+      </span>
     </div>
   </div>
 
@@ -467,8 +479,11 @@
       on:mousemove={hoverCell}
       on:mousedown={clickCell}
       on:mouseleave={unHoverCell}>
-      <div class="waste-line" style="width:{20 * $conf.width + 100}px;transform:translateY({$state.wasteDepth*20}px);">
-        {Math.floor($state.turnsToWaste)} <span class="field-name">turns</span>
+      <div
+        class="waste-line"
+        style="width:{20 * $conf.width + 100}px;transform:translateY({$state.wasteDepth * 20}px);">
+        {Math.floor($state.turnsToWaste)}
+        <span class="field-name">turns</span>
       </div>
       <div class="animations">
         {#each particles as anim}

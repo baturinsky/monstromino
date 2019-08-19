@@ -88,7 +88,6 @@ a:hover[href] {
   width: 20px;
   height: 20px;
   display: inline-block;
-  transition: 0.3s;
 }
 
 .death {
@@ -123,7 +122,7 @@ a:hover[href] {
 
 
 .aimed {
-  transition: 0.1s;
+  transition: none;
   opacity: 0.5;
   box-shadow: 0px 0px 5px 5px rgba(255, 255, 255, 1);
 }
@@ -743,4 +742,8 @@ select{
   box-shadow: 0px 0px 1px 0px rgba(0, 0, 0, 0.05), 0px 0px 10px 5px rgba(255, 255, 255, 0.7), 10px -5px 15px 10px rgba(255, 128, 128, 0.3),
       -10px -5px 15px 10px rgba(128, 128, 255, 0.3), 0px 13px 15px 10px rgba(128, 255, 128, 0.3);
 
+}
+
+.transition{
+  transition: 0.3s;
 }
