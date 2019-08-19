@@ -279,7 +279,8 @@
     }
   }
 
-  window.onkeydown = e => {
+  document.onkeydown = e => {
+    console.log(e)
     switch (e.code) {
       case "KeyS":
         if (page == "settings") toPage("board");
