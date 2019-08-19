@@ -50,7 +50,7 @@ export default class MonstrominoFig extends Fig {
     let dreamMultiplier = 2;
     let baseBonus = 5;
     let finalMultiplier = 0.015;
-    let depthScaling = 0.04
+    let depthScaling = 0.05
 
     let bonuses = { str: 0, vit: 0, def: 0, spd: 0, dream: 0 };
 

@@ -1,9 +1,6 @@
 <script>
-  import {
-    settings,
-    game
-  } from "./store.js";
-  import { bigNum } from "./Util"
+  import { settings, game } from "./store.js";
+  import { bigNum } from "./Util";
 
   export let target;
   export let fg;
@@ -11,7 +8,6 @@
 
   let abridgedAnalysis;
   $: abridgedAnalysis = $settings.abridgedAnalysis;
-
 </script>
 
 <div class="detached-title">
@@ -23,21 +19,14 @@
 </div>
 
 <div class="battle-outcome">
-  {#if target.battle.outcome != 'win' || !abridgedAnalysis}
-    <span class="battle-{target.battle.outcome}">
-      {target.battle.outcome.toUpperCase()}
-    </span>
-  {/if}
-  {#if target.battle.outcome == 'win'}
-    {#if target.xp}
+  {#if target.xp}
     {abridgedAnalysis ? '' : target.xp[0]}
     <span class={fg(target.xp[0])}>
       {(abridgedAnalysis ? '' : '+') + bigNum(target.xp[1])}
     </span>
-    {/if}
-    {abridgedAnalysis ? '' : 'score'}
-    <span class={dream}>+ {target.score}</span>
   {/if}
+  {abridgedAnalysis ? '' : 'score'}
+  <span class={dream}>+ {target.score}</span>
 </div>
 
 <div class="combat-log">
@@ -72,5 +61,7 @@
     {/if}
     <span />
   {/each}
+  <span class="battle-{target.battle.outcome}">
+    {target.battle.outcome.toUpperCase()}
+  </span>
 </div>
-
