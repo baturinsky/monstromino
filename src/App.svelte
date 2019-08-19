@@ -123,7 +123,7 @@
     let [x, y] = mousePosition;
     let width = analysis ? analysis.offsetWidth : 400;
     let s = `left: ${
-      x > window.innerWidth - width - 50 ? x - width - 50 : x + 100
+      x > window.innerWidth - width - 70 ? x - width - 50 : x + 100
     }px; top: ${Math.min(
       y,
       window.innerHeight - (analysis ? analysis.offsetHeight : 50) - 50

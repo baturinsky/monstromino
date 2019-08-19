@@ -1,14 +1,14 @@
 @keyframes dream {
   0% {
-    filter:hue-rotate(0deg)
+    filter: hue-rotate(0deg);
   }
 
   50% {
-    filter:hue-rotate(180deg)
+    filter: hue-rotate(180deg);
   }
 
   100% {
-    filter:hue-rotate(360deg)
+    filter: hue-rotate(360deg);
   }
 }
 
@@ -29,18 +29,24 @@
 
 @keyframes glow {
   0% {
-    box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), 10px -5px 30px 20px rgba(255, 0, 0, 0.5),
-      -10px -5px 30px 20px rgba(0, 0, 255, 0.5), 0px 13px 30px 20px rgba(0, 255, 0, 0.5);
+    box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5),
+      10px -5px 30px 20px rgba(255, 0, 0, 0.5),
+      -10px -5px 30px 20px rgba(0, 0, 255, 0.5),
+      0px 13px 30px 20px rgba(0, 255, 0, 0.5);
   }
   100% {
-    box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5), -10px 5px 30px 20px rgba(255, 0, 0, 0.5),
-      10px 5px 30px 20px rgba(0, 0, 255, 0.5), 0px -13px 30px 20px rgba(0, 255, 0, 0.5);
+    box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.5),
+      -10px 5px 30px 20px rgba(255, 0, 0, 0.5),
+      10px 5px 30px 20px rgba(0, 0, 255, 0.5),
+      0px -13px 30px 20px rgba(0, 255, 0, 0.5);
   }
 }
 
-@keyframes boom{
-  0%{ transform: perspective(300px)}
-  100%{ 
+@keyframes boom {
+  0% {
+    transform: perspective(300px);
+  }
+  100% {
     transform: perspective(300px) translate3d(0, -40px, 0);
     transform: rotateZ(150deg);
     opacity: 0.3;
@@ -74,13 +80,11 @@ a:hover[href] {
   flex-flow: row wrap;
 }
 
-
-
 .dream {
   color: cyan;
 }
 
-.dream-animation{
+.dream-animation {
   animation: dream 5s infinite;
 }
 
@@ -102,24 +106,21 @@ a:hover[href] {
   position: absolute;
   z-index: 10;
   pointer-events: none;
-  text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
 }
 
-
 .attackable {
-  cursor: pointer;  
+  cursor: pointer;
   opacity: 0.9;
 }
 
-.outlined{
+.outlined {
   box-shadow: inset 0px 0px 0px 2px white;
 }
-
 
 .resolved {
   opacity: 0;
 }
-
 
 .aimed {
   transition: none;
@@ -127,18 +128,17 @@ a:hover[href] {
   box-shadow: 0px 0px 5px 5px rgba(255, 255, 255, 1);
 }
 
-.animations{
-  position:absolute;
+.animations {
+  position: absolute;
   z-index: 5;
 }
 
-.waste-line{
+.waste-line {
   position: absolute;
   text-align: right;
-  border-top: rgba(0,0,0,0.25) 1px solid;  
+  border-top: rgba(0, 0, 0, 0.25) 1px solid;
   pointer-events: none;
 }
-
 
 /*
 .aimed::after {
@@ -217,7 +217,6 @@ a:hover[href] {
   opacity: 0.9;
 }
 
-
 .combat-log {
   text-align: center;
 }
@@ -231,8 +230,8 @@ a:hover[href] {
   margin-bottom: 3px;
 }
 
-.width-300{
-  width:300px;
+.width-300 {
+  width: 300px;
 }
 
 .attacking {
@@ -288,8 +287,7 @@ button {
   transition: 0.2s;
 }
 
-button:hover{
-  
+button:hover {
 }
 
 :focus {
@@ -353,7 +351,7 @@ button:hover {
   justify-content: space-around;
 }
 
-.buttons-horizontal button{
+.buttons-horizontal button {
   flex-grow: 1;
 }
 
@@ -369,17 +367,17 @@ button:hover {
   padding: 10px;
 }
 
-.card{
+.card {
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
-  padding:5px;
+  padding: 5px;
 }
 
-.bottom{
+.bottom {
   bottom: 0px;
 }
 
-.center{
+.center {
   margin-top: auto;
   margin-bottom: auto;
   top: 50%;
@@ -387,7 +385,7 @@ button:hover {
   text-align: center;
 }
 
-.panel-hidden-ne{
+.panel-hidden-ne {
   left: -10%;
   opacity: 0;
   transform: scale(0);
@@ -395,21 +393,21 @@ button:hover {
   pointer-events: none;
 }
 
-.panel-hidden-n{
+.panel-hidden-n {
   opacity: 0;
   transform: none;
   top: -100%;
   pointer-events: none;
 }
 
-.panel-hidden-s{
+.panel-hidden-s {
   opacity: 0;
   transform: none;
   left: 100%;
   pointer-events: none;
 }
 
-.panel-hidden{
+.panel-hidden {
   opacity: 0;
   pointer-events: none;
 }
@@ -450,7 +448,8 @@ ul {
 }
 
 .save {
-  width: 400px;
+  width: 600px;
+  text-align: left;
 }
 
 .wip {
@@ -470,7 +469,6 @@ ul {
   filter: brightness(0.7);
 }
 
-
 .wasted {
   filter: grayscale(1);
 }
@@ -485,17 +483,20 @@ ul {
 }
 
 .shiny:not(.attackable)::after {
-  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.6), 10px -5px 30px 20px rgba(255, 128, 128, 0.3),
-      -10px -5px 30px 20px rgba(128, 128, 255, 0.3), 0px 13px 30px 20px rgba(128, 255, 128, 0.3);
+  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.6),
+    10px -5px 30px 20px rgba(255, 128, 128, 0.3),
+    -10px -5px 30px 20px rgba(128, 128, 255, 0.3),
+    0px 13px 30px 20px rgba(128, 255, 128, 0.3);
 }
 
 .shiny.attackable::after {
-  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.6), 10px -5px 30px 30px rgba(255, 128, 128, 0.5),
-      -10px -5px 30px 30px rgba(128, 128, 255, 0.5), 0px 13px 30px 30px rgba(128, 255, 128, 0.5);
+  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.6),
+    10px -5px 30px 30px rgba(255, 128, 128, 0.5),
+    -10px -5px 30px 30px rgba(128, 128, 255, 0.5),
+    0px 13px 30px 30px rgba(128, 255, 128, 0.5);
 }
 
-
-.complete-log{
+.complete-log {
   text-align: left;
 }
 
@@ -517,11 +518,9 @@ span {
   position: absolute;
   visibility: hidden;
   opacity: 0;
-  transition:         
-      opacity 0.2s ease-in-out,
-      visibility 0.2s ease-in-out,
-      transform 0.2s cubic-bezier(0.71, 1.7, 0.77, 1.24);
-  transform:         translate3d(0, 0, 0);
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out,
+    transform 0.2s cubic-bezier(0.71, 1.7, 0.77, 1.24);
+  transform: translate3d(0, 0, 0);
   pointer-events: none;
 }
 
@@ -544,7 +543,7 @@ span {
   z-index: 1001;
   border: 6px solid transparent;
   background: transparent;
-  content: "";  
+  content: "";
 }
 
 /* Base styles for the tooltip's content area */
@@ -553,12 +552,12 @@ span {
   z-index: 1000;
   padding: 8px;
   width: 160px;
-  background-color: rgba(255,255,255,0.9);
+  background-color: rgba(255, 255, 255, 0.9);
   color: black;
   content: attr(data-tooltip);
   font-size: 14px;
   line-height: 1.2;
-  box-shadow: 1px 0px 4px 0px rgba(0,0,0,0.4);
+  box-shadow: 1px 0px 4px 0px rgba(0, 0, 0, 0.4);
   border-radius: 3px;
   text-align: center;
   text-transform: none;
@@ -605,7 +604,7 @@ span {
 .tooltip-top:hover:after,
 .tooltip-top:focus:before,
 .tooltip-top:focus:after {
-  transform:         translateY(-12px); 
+  transform: translateY(-12px);
 }
 
 /* Left */
@@ -628,7 +627,7 @@ span {
 .tooltip-left:hover:after,
 .tooltip-left:focus:before,
 .tooltip-left:focus:after {
-  transform:         translateX(-12px); 
+  transform: translateX(-12px);
 }
 
 /* Bottom */
@@ -650,7 +649,7 @@ span {
 .tooltip-bottom:hover:after,
 .tooltip-bottom:focus:before,
 .tooltip-bottom:focus:after {
-  transform:         translateY(12px); 
+  transform: translateY(12px);
 }
 
 /* Right */
@@ -671,7 +670,7 @@ span {
 .tooltip-right:hover:after,
 .tooltip-right:focus:before,
 .tooltip-right:focus:after {
-  transform:         translateX(12px); 
+  transform: translateX(12px);
 }
 
 /* Move directional arrows down a bit for left/right tooltips */
@@ -687,26 +686,26 @@ span {
   margin-bottom: -16px;
 }
 
-.large-font{
+.large-font {
   font-size: large;
 }
 
-.wide-lines{
+.wide-lines {
   line-height: 18pt;
 }
 
-select{
-  font-size:14pt;
+select {
+  font-size: 14pt;
   border: solid rgba(0, 0, 0, 0.3);
   border-width: 0px 0px 1px 0px;
 }
 
-.settings{
+.settings {
   display: flex;
   flex-flow: column;
 }
 
-.se-corner{
+.se-corner {
   display: flex;
   flex-flow: column-reverse;
   justify-content: center;
@@ -714,36 +713,44 @@ select{
   left: calc(100% - 60px);
   top: calc(100% - 55px);
   z-index: 20;
-  transform:rotate(-90deg);
+  transform: rotate(-90deg);
 }
 
-.important{
+.important {
   background: blue;
-  color:white;
+  color: white;
 }
 
 .important::first-letter {
   text-decoration: underline;
 }
 
-.shiny-inline{
+.shiny-inline {
   display: inline-block;
   width: 20px;
   height: 20px;
 }
 
-.shiny-inline::after{
+.shiny-inline::after {
   z-index: 1;
   content: " ";
   position: absolute;
   width: 20px;
   height: 20px;
   pointer-events: none;
-  box-shadow: 0px 0px 1px 0px rgba(0, 0, 0, 0.05), 0px 0px 10px 5px rgba(255, 255, 255, 0.7), 10px -5px 15px 10px rgba(255, 128, 128, 0.3),
-      -10px -5px 15px 10px rgba(128, 128, 255, 0.3), 0px 13px 15px 10px rgba(128, 255, 128, 0.3);
-
+  box-shadow: 0px 0px 1px 0px rgba(0, 0, 0, 0.05),
+    0px 0px 10px 5px rgba(255, 255, 255, 0.7),
+    10px -5px 15px 10px rgba(255, 128, 128, 0.3),
+    -10px -5px 15px 10px rgba(128, 128, 255, 0.3),
+    0px 13px 15px 10px rgba(128, 255, 128, 0.3);
 }
 
-.transition{
+.transition {
   transition: 0.3s;
+}
+
+.savex {
+  width: 60px;
+  display: inline-block;
+  text-align: center;
 }

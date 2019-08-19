@@ -57,7 +57,7 @@ export function updateSaves() {
       let n = Number(k.substr(savePrefixLength));
       let description = "?";
       try {
-        description = `t${data.turns.length} ${data.conf.width}x${
+        description = `${data.conf.mode} t${data.turns.length} ${data.conf.width}x${
           data.conf.height
         } #${data.conf.seed} ${data.date.toLocaleString()}`;
       } catch (e) {
