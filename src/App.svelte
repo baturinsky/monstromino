@@ -3,6 +3,7 @@
     saves,
     game,
     debrief,
+    stateRef,
     state,
     conf,
     board,
@@ -10,6 +11,7 @@
     settings
   } from "./store.js";
   import Game from "./Game";
+  import {createGame} from "./Main";
   import lang from "./lang";
   import What from "./What.svelte";
   import Files from "./Files.svelte";
@@ -18,6 +20,7 @@
   import { bigNum, strfmt } from "./Util";
 
   let paper = [new Audio("paper2.ogg"), new Audio("paper.ogg")];
+  let bell = new Audio("bell.ogg");
 
   let target;
   let page = "board";
@@ -39,18 +42,15 @@
     }
   };
 
-  let mode;  
+  /*let state = state1;
+  stateRef.subscribe(s=>{if(s) {
+    state = s;
+  }})*/
+
+  let mode;
   $: {
     mode = modes[$game.mode];
   }
-
-  /*let colors = $game.colors;
-  let fg = {};
-  let bg = {};
-  for (let c in colors) {
-    fg[c] = "fg-" + colors[c];
-    bg[c] = "bg-" + colors[c];
-  }*/
 
   function fg(c) {
     return "fg-" + $game.colors(c);
@@ -67,6 +67,7 @@
 
   conf.subscribe(v => {
     Object.assign(custom, v);
+    delete custom.goal;
   });
 
   function clickCell(e) {
@@ -76,9 +77,9 @@
     } else {
       let result = $game.attackFigAt(e.target.id);
       if (result) {
-        if($settings.sound){
-          let sound = paper[Math.floor(Math.random()*2)];
-          sound.playbackRate = 1 + Math.random() * 1.3;
+        if ($settings.sound) {
+          let sound = result.dream?bell:paper[Math.floor(Math.random() * 2)];
+          sound.playbackRate = (1 + Math.random() * 1.3) * (result.dream?0.5:1);
           sound.volume = 0.5 + Math.random() / 2;
           sound.play();
         }
@@ -111,7 +112,10 @@
   }
 
   let analysis;
-  function analysisPosition() {
+
+  let analysisPosition = ""
+
+  function updateAnalysisPosition() {
     let [x, y] = mousePosition;
     let width = analysis ? analysis.offsetWidth : 400;
     let s = `left: ${
@@ -120,7 +124,7 @@
       y,
       window.innerHeight - (analysis ? analysis.offsetHeight : 50) - 50
     )}px`;
-    return s;
+    analysisPosition = s;
   }
 
   let moveTimeout;
@@ -129,13 +133,14 @@
     mousePosition = [e.x, e.y];
     let movement = Math.abs(e.movementX) + Math.abs(e.movementY);
     showInfo();
+    updateAnalysisPosition();
 
     if (movement > 4) {
       if (moveTimeout) clearTimeout(moveTimeout);
       moveTimeout = setTimeout(_ => {
         moveTimeout = null;
       }, 1000);
-    }
+    }    
   };
 
   function undo() {
@@ -152,20 +157,17 @@
   function toPage(p) {
     particles.length = 0;
     hovered = target = null;
-    page = p;    
+    page = p;
   }
 
   function goTo(conf) {
-    window.location.search = "?" + new URLSearchParams(conf).toString();
+    window.scrollTo(0,0);
+    window.location.hash = "#" + new URLSearchParams(conf).toString();
+    createGame();
   }
 
   function playCustom() {
-    /*for (let k in custom) custom[k] = +custom[k];
-    $game.start(custom);*/
-    /*let c = {};
-    Object.assign(c, custom);
-    $game.play([]);*/
-    $game.wipeAuto()
+    $game.wipeAuto();
     goTo(custom);
   }
 
@@ -175,7 +177,7 @@
 
   function cellClasses(fig) {
     let classes = [
-      fig.dream && !fig.resolved ? "bg-none" : bg(fig.kind),
+      fig.dream?"bg-none":"bg-" + fig.color,
       fig.resolved && !fig.dream ? "resolved" : ""
     ];
 
@@ -184,14 +186,24 @@
     } else {
       classes = classes.concat([
         fig.dream && fig.resolved && chrome ? "dream-animation" : "",
-        fig.possible ? mode.attackable : "",
-        fig.dream || fig.possible || (fig.resolved && fig.reached)
+        fig.possibility == 1 ? mode.attackable : "",
+        fig.dream || fig.possibility > 0 || (fig.resolved && fig.reached)
           ? ""
           : mode.impossible
       ]);
     }
     classes = classes.filter(s => s != "").join(" ");
     return classes;
+  }
+
+  function cellStyle(fig) {
+    if (fig.possibility > 0 && fig.possibility < 1) {
+      let color = fig.dream?colors[fig.color].bg:"rgba(0,0,0,0.3)";
+      return `box-shadow: inset 0px 0px 0px ${10 -
+        8 * fig.possibility}px ${color};`;
+    } else {
+      return "";
+    }
   }
 
   let particles = [];
@@ -260,8 +272,6 @@
     if (ind >= 0) {
       particles.splice(ind, 1);
     }
-
-    console.log(particles.length);
   }
 
   window.onkeydown = e => {
@@ -285,12 +295,42 @@
         return;
     }
   };
+
+  let colors = {
+    red: [0xff0000, 0xff0000],
+    orange: [0xff8000, 0xff8000],
+    yellow: [0xffdd00, 0xFFD700],
+    green: [0x00bb00, 0x00ee00],
+    cyan: [0x00bbbb, 0x00ffff],
+    blue: [0x0000ff, 0x3333ff],
+    violet: [0xbb00ff, 0xbb00ff],
+    dream: [0x00bbbb, 0x00ffff],
+    none: [0xffffff, 0xffffff]
+  };
+
+  function toStringColor(n){
+    return "#" + ("000000" + n.toString(16)).substr(-6)
+  }
+
+  for(let k in colors){
+    colors[k] = {fg:toStringColor(colors[k][0]), bg:toStringColor(colors[k][1])};
+  }
+
+  let style = document.createElement("style");
+  style.type = "text/css";
+  document.getElementsByTagName("head")[0].appendChild(style);
+  style.innerHTML = Object.keys(colors)
+    .map(color => `
+    .fg-${color} { color: ${colors[color].fg}}
+    .bg-${color} { background: ${colors[color].bg}}
+    `)
+    .join("\n");
 </script>
 
 {#if target}
   {#if target.wasted}
     <div
-      style={analysisPosition()}
+      style={analysisPosition}
       bind:this={analysis}
       class="analysis width-300 {!moveTimeout ? 'analysis-shown' : ''}">
       <div class="detached-title">
@@ -300,16 +340,16 @@
         {@html strfmt(lang.tip_wasted, $game.wastedDelay, $game.turnsPerWastedLine)}
       </div>
     </div>
-  {:else if $game.mode == "monstromino" && target.battle}
+  {:else if $game.mode == 'monstromino' && target.battle}
     <div
-      style={analysisPosition()}
+      style={analysisPosition}
       bind:this={analysis}
       class="analysis {!moveTimeout ? 'analysis-shown' : ''}">
       <MonstrominoAnalysis {...{ target, fg, dream }} />
     </div>
-  {:else if $game.mode == "life" && target.state}
+  {:else if $game.mode == 'life' && target.stats}
     <div
-      style={analysisPosition()}
+      style={analysisPosition}
       bind:this={analysis}
       class="analysis {!moveTimeout ? 'analysis-shown' : ''}">
       <LifeAnalysis {...{ target, fg, dream }} />
@@ -321,7 +361,6 @@
   <div class="menu">
     <button>menu</button>
     <div class="dropdown">
-      <button on:click={toggleWhat}>Help</button>
       <button on:click={e => toPage('board')}>Board</button>
       <button on:click={e => toPage('files')}>Files</button>
       <button on:click={e => toPage('settings')}>Settings</button>
@@ -346,7 +385,7 @@
       ability
     </button>
   {:else}
-    <button class="hotkey" on:click={e => toPage("board")}>back</button>
+    <button class="hotkey" on:click={e => toPage('board')}>back</button>
     <div class="page-title">{page}</div>
   {/if}
 
@@ -357,17 +396,20 @@
       <span class="{dream} tooltip-bottom" data-tooltip={lang.tip_score}>
         {bigNum($state.score)}
       </span>
+      {#if $conf.goal}
+        <span class="field-name {dream}">/{$conf.goal}</span>
+      {/if}
       <span class="field-name">turns</span>
       <span>{Math.round($state.turns)}</span>
     {/if}
   </div>
 </div>
 
-<div class="bottom panel card {$what ? '' : 'panel-hidden-ne'}">
+<div class="bottom panel card {$what ? '' : 'panel-hidden-s'}">
   {#if page == 'files'}
     {@html lang.what_files}
   {:else}
-    <What />
+    <What {...{ fg, bg, dream }}/>
   {/if}
   <div />
   <button on:click={e => ($what = false)}>Ok, got it</button>
@@ -376,7 +418,9 @@
 <div
   class="center panel {$state.complete && page == 'board' ? '' : 'panel-hidden'}">
 
-  <div class="detached-title card large-font" style="padding:5px">Board clear</div>
+  <div class="detached-title card large-font" style="padding:5px">
+    {$state.complete?($state.haveMoves?"Board clear":"You have failed at life"):""}
+  </div>
 
   <div class="card wide-lines">
     <big>
@@ -389,7 +433,7 @@
     <span class={dream}>dream</span>
     * 100
     {#each $game.colorsList.slice(2) as field, i}
-      {#if i>0}&nbsp;{/if}
+      {#if i > 0}&nbsp;{/if}
       + {bigNum($debrief[field])}
       <span class={fg(field)}>{field}</span>
     {/each}
@@ -409,7 +453,7 @@
     <br />
     <div class="buttons-horizontal">
       <button on:click={undo}>Undo</button>
-      <button on:click={customize}>Edit board</button>
+      <span style="margin:0px 10px">Or use the form at the bottom for another board/mode.</span>
     </div>
   </div>
 
@@ -423,7 +467,10 @@
       on:mousemove={hoverCell}
       on:mousedown={clickCell}
       on:mouseleave={unHoverCell}>
-      <div class="particles">
+      <div class="waste-line" style="width:{20 * $conf.width + 100}px;transform:translateY({$state.wasteDepth*20}px);">
+        {Math.floor($state.turnsToWaste)} <span class="field-name">turns</span>
+      </div>
+      <div class="animations">
         {#each particles as anim}
           <div
             class={anim.class || 'death'}
@@ -439,18 +486,17 @@
           id={i}
           class="cell {cellClasses(fig)}
           {fig.possible && !fig.wasted && fig == target ? 'aimed' : ''}
-          {fig.dream && !fig.resolved && !fig.wasted ? 'shiny' : ''}" />
+          {fig.dream && !fig.resolved && !fig.wasted ? 'shiny' : ''}"
+          style={cellStyle(fig)} />
       {/each}
     </div>
     <div class="board-conf">
       Mode
       <select bind:value={custom.mode}>
-        {#each ["monstromino", "rainbow", "life"] as question}
-          <option value={question}>
-            {question}
-          </option>
+        {#each ['monstromino', 'rainbow', 'life'] as question}
+          <option value={question}>{question}</option>
         {/each}
-      </select>    
+      </select>
       Seed
       <input bind:value={custom.seed} />
       &nbsp;Width
@@ -466,14 +512,18 @@
   {/if}
   {#if page == 'settings'}
     <div class="settings">
-    <label>
-      <input type=checkbox bind:checked={$settings.sound}>
-      Sound
-    </label>
-    <label>
-      <input type=checkbox bind:checked={$settings.abridgedAnalysis}>
-      Shortened combat analysis
-    </label>
+      <label>
+        <input type="checkbox" bind:checked={$settings.sound} />
+        Sound
+      </label>
+      <label>
+        <input type="checkbox" bind:checked={$settings.abridgedAnalysis} />
+        Shortened combat analysis
+      </label>
     </div>
   {/if}
+</div>
+
+<div class="se-corner">
+  <button class="important" on:click={toggleWhat}>Help</button>
 </div>

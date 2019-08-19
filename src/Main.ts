@@ -7,9 +7,9 @@ import Life from "./Life";
 export function createGame() {
   let urlConf;
 
-  let defaultConf = { width: 30, height: 80, seed: 1, mode:"monstromino" };
-  if (document.location.search) {
-    let usp = new URLSearchParams(document.location.search.substr(1));
+  let defaultConf = { width: 30, height: 80, seed: 1, mode:"life" };
+  if (document.location.hash) {
+    let usp = new URLSearchParams(document.location.hash.substr(1));
     urlConf = Object.fromEntries(usp.entries());
   }
 

@@ -31,20 +31,37 @@ export default class Fig {
     if (this.resolved) return;
     this.resolved = true;
     for (let n of this.neighbors) n.reach();
-    this.loot();
+    if(!this.none)
+      this.loot();
   }
 
   get possible() {
-    return this.reached && !this.resolved
-  }  
+    return this.possibility == 1;
+  }
+
+  get possibility():number{
+    return 0;
+  }
 
   loot() {
   }
 
-  get score(){
-    return this.cells.length * (this.dream?100:1)
+  get lootRatio() {
+    return 0.1;
   }
 
+  get score(){
+    return this.cells.length * (this.dream?this.scorePerDream:1)
+  }
+
+  get scorePerDream(){
+    return 100;
+  }
+
+  get scorePerTurn(){
+    return 3;
+  }
+  
   get xp(){
     return null;
   }
@@ -73,8 +90,13 @@ export default class Fig {
   updateAnalysis(){
   }
 
-  get deathText():any{
-    return null
+  get deathText(){
+    if(this.kind == "dream")
+      return {class:"dream", text:this.scorePerDream}
+      
+    let xp = this.xp;
+    if(xp && xp.length>=2)
+      return {class:xp[0], text:xp[1]}      
   }
 
 }

@@ -22,7 +22,7 @@ export function bigNum(n) {
   if(isNaN(+n))
     return n;
   let i;
-  for (i = 0; Math.abs(n) > 10000 && i < bigNumLetters.length; i++) n /= 1000;
+  for (i = 0; Math.abs(n) > 100000 && i < bigNumLetters.length; i++) n /= 1000;
   return Math.round(n) + bigNumLetters[i];
 }
 

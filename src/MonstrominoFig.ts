@@ -15,12 +15,13 @@ export default class MonstrominoFig extends Fig {
   }
 
   loot() {
+    this.game.score += this.score - this.scorePerTurn;
+
     let statName = this.kind;
     if (statName == "none") return;
     this.monstromino.prota[statName] += Math.floor(
-      this.battle.enemy[statName] / 10
+      this.battle.enemy[statName] * this.lootRatio
     );
-    this.game.score += this.score - 3;
   }
 
   get xp() {
@@ -28,14 +29,6 @@ export default class MonstrominoFig extends Fig {
       return null;
     let statName = this.kind;
     return [statName, Math.floor(this.battle.enemy[statName] / 10)];
-  }
-
-  get deathText(){
-    if(this.kind == "dream")
-      return {class:"dream", text:100}
-
-    let xp = this.xp;
-    return {class:xp[0], text:xp[1]}
   }
 
   /*resolve() {
@@ -96,12 +89,8 @@ export default class MonstrominoFig extends Fig {
     this.battle = null;
   }
 
-  get possible() {
-    return (
-      this.reached &&
-      !this.resolved &&
-      this.battle &&
-      this.battle.outcome == "win"
-    );
+  get possibility() {
+    if (!this.reached || this.resolved || this.wasted) return 0;
+    return this.battle?this.battle.success:0;
   }
 }

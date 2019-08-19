@@ -74,37 +74,7 @@ a:hover[href] {
   flex-flow: row wrap;
 }
 
-.bg-red {
-  background: red;
-}
-.bg-orange {
-  background: #f80;
-}
-.bg-yellow {
-  background: gold;
-}
-.bg-green {
-  background: #0e0;
-}
-.bg-cyan {
-  background: cyan;
-}
-.bg-blue {
-  background: #33f;
-}
-.bg-purple {
-  background: magenta;
-}
-.bg-violet {
-  background: #b0f;
-}
-.bg-none {
-  background: white;
-}
 
-.bg-dream {
-  background: cyan;
-}
 
 .dream {
   color: cyan;
@@ -114,42 +84,10 @@ a:hover[href] {
   animation: dream 5s infinite;
 }
 
-.fg-red {
-  color: red;
-}
-.fg-orange {
-  color: #f80;
-}
-.fg-yellow {
-  color: #fd0;
-}
-.fg-green {
-  color: #0b0;
-}
-.fg-cyan {
-  color: #0bb;
-}
-.fg-blue {
-  color: #33f;
-}
-.fg-purple {
-  color: magenta;
-}
-.fg-violet {
-  color: purple;
-}
-.fg-dream {
-  color: #0bb;
-}
-
-.fg-none {
-  color: white;
-}
-
 .cell {
   width: 20px;
   height: 20px;
-  text-align: center;
+  display: inline-block;
   transition: 0.3s;
 }
 
@@ -190,10 +128,18 @@ a:hover[href] {
   box-shadow: 0px 0px 5px 5px rgba(255, 255, 255, 1);
 }
 
-.particles{
+.animations{
   position:absolute;
   z-index: 5;
 }
+
+.waste-line{
+  position: absolute;
+  text-align: right;
+  border-top: rgba(0,0,0,0.25) 1px solid;  
+  pointer-events: none;
+}
+
 
 /*
 .aimed::after {
@@ -302,7 +248,15 @@ a:hover[href] {
   color: green;
 }
 
+.battle-possible {
+  color: green;
+}
+
 .battle-lose {
+  color: red;
+}
+
+.battle-impossible {
   color: red;
 }
 
@@ -424,7 +378,6 @@ button:hover {
 
 .bottom{
   bottom: 0px;
-  margin-bottom: 50px;
 }
 
 .center{
@@ -447,6 +400,13 @@ button:hover {
   opacity: 0;
   transform: none;
   top: -100%;
+  pointer-events: none;
+}
+
+.panel-hidden-s{
+  opacity: 0;
+  transform: none;
+  left: 100%;
   pointer-events: none;
 }
 
@@ -520,20 +480,19 @@ ul {
   z-index: 1;
   content: " ";
   position: absolute;
-  margin-left: -10px;
   width: 20px;
   height: 20px;
   pointer-events: none;
 }
 
 .shiny:not(.attackable)::after {
-  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.3), 10px -5px 30px 20px rgba(255, 128, 128, 0.3),
+  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.6), 10px -5px 30px 20px rgba(255, 128, 128, 0.3),
       -10px -5px 30px 20px rgba(128, 128, 255, 0.3), 0px 13px 30px 20px rgba(128, 255, 128, 0.3);
 }
 
 .shiny.attackable::after {
-  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.3), 10px -5px 30px 30px rgba(255, 128, 128, 0.3),
-      -10px -5px 30px 30px rgba(128, 128, 255, 0.3), 0px 13px 30px 30px rgba(128, 255, 128, 0.3);
+  box-shadow: 0px 0px 20px 10px rgba(255, 255, 255, 0.6), 10px -5px 30px 30px rgba(255, 128, 128, 0.5),
+      -10px -5px 30px 30px rgba(128, 128, 255, 0.5), 0px 13px 30px 30px rgba(128, 255, 128, 0.5);
 }
 
 
@@ -746,4 +705,42 @@ select{
 .settings{
   display: flex;
   flex-flow: column;
+}
+
+.se-corner{
+  display: flex;
+  flex-flow: column-reverse;
+  justify-content: center;
+  position: fixed;
+  left: calc(100% - 60px);
+  top: calc(100% - 55px);
+  z-index: 20;
+  transform:rotate(-90deg);
+}
+
+.important{
+  background: blue;
+  color:white;
+}
+
+.important::first-letter {
+  text-decoration: underline;
+}
+
+.shiny-inline{
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+}
+
+.shiny-inline::after{
+  z-index: 1;
+  content: " ";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  box-shadow: 0px 0px 1px 0px rgba(0, 0, 0, 0.05), 0px 0px 10px 5px rgba(255, 255, 255, 0.7), 10px -5px 15px 10px rgba(255, 128, 128, 0.3),
+      -10px -5px 15px 10px rgba(128, 128, 255, 0.3), 0px 13px 15px 10px rgba(128, 255, 128, 0.3);
+
 }

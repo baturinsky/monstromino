@@ -1,7 +1,6 @@
 import * as store from "./store";
 import Twister from "mersennetwister";
 import Fig from "./Fig";
-import { init } from "svelte/internal";
 
 class Game {
   twister = new Twister();
@@ -14,6 +13,7 @@ class Game {
   dreamsWasted: number;
   dreamsTotal: number;
   complete: boolean;
+  haveMoves: boolean;
 
   turns: number[] = [];
 
@@ -27,7 +27,7 @@ class Game {
     store.game.set(this);
   }
 
-  colors(kind:string) {
+  colors(kind: string) {
     return kind;
   }
 
@@ -99,7 +99,6 @@ class Game {
   }
 
   deserialize(data: any) {
-    console.log(data);
     for (let field in data) this[field] = data[field];
     this.generate();
     this.play(data.turns);
@@ -124,8 +123,6 @@ class Game {
     this.deltas = [-1, 1, -this.width, +this.width];
 
     let raw = [...Array(this.cellsNumber)].map((a, i) => this.cellGenerator(i));
-
-    console.log(raw);
 
     for (
       let i = 0;
@@ -185,15 +182,15 @@ class Game {
     return Math.floor(cell / this.width);
   }
 
-  init(){
-  }
+  init() {}
 
   play(turns: number[] = []) {
     this.init();
 
     this.turns = turns;
-    this.score = 0;
+    this.score = 0;    
     this.dreamsTotal = 0;
+    this.haveMoves = true;
 
     for (let fig of this.figs) {
       fig.reset();
@@ -224,6 +221,7 @@ class Game {
       this.turns.push(fig.id);
       this.stateChanged();
       this.saveAuto();
+
       return fig;
     }
     return null;
@@ -238,9 +236,13 @@ class Game {
   }
 
   updateResolutions() {
-    for (let b of this.figs) {
-      if (b.reached && !b.resolved) {
-        b.updateAnalysis();
+    this.haveMoves = false
+    for (let f of this.figs) {
+      if (f.reached && !f.resolved) {
+        if(f.possible){
+          this.haveMoves = true;
+        }
+        f.updateAnalysis();
       }
     }
   }
@@ -288,29 +290,39 @@ class Game {
     store.conf.set(this.conf);
     store.board.set(this.board);
 
-    this.complete = this.dreamsResolved + this.dreamsWasted == this.dreamsTotal;
+    this.complete = this.dreamsResolved + this.dreamsWasted == this.dreamsTotal || !this.haveMoves;
 
     let state = {
       turns: this.turns.length,
       score: this.score,
-      complete: this.complete ? 1 : 0
+      wasteDepth: this.wasteDepth,
+      turnsToWaste: this.turnsToWaste,
+      complete: this.complete ? 1 : 0,
+      haveMoves: this.haveMoves ? 1: 0 
     };
 
     Object.assign(state, this.stateExtraFields());
-
+        
     store.setGameState(state);
 
     store.debrief.set(this.debrief);
   }
 
-  wasted(i: number) {
+  get wasteDepth() {
     return (
-      i <
-      this.width *
-        Math.floor(
-          (this.turns.length - this.wastedDelay) / this.turnsPerWastedLine
-        )
+      Math.max(0,Math.floor((this.turns.length - this.wastedDelay) / this.turnsPerWastedLine))
     );
+  }
+
+  get turnsToWaste(){
+    let delayed = this.turns.length - this.wastedDelay;
+    if(delayed < 0)
+      return -delayed;
+    return this.turnsPerWastedLine - delayed % this.turnsPerWastedLine;
+  }
+
+  wasted(i: number) {
+    return i < this.width * this.wasteDepth;
   }
 
   get turnsPerWastedLine() {
@@ -336,10 +348,12 @@ class Game {
   }
 
   get challengeUrl() {
-    let params = new URLSearchParams(this.conf as any);
-    params.append("goal", this.score.toString());
+    let urlConf: any = {};
+    Object.assign(urlConf, this.conf);
+    urlConf.goal = this.score;
+    let params = new URLSearchParams(urlConf);
     let url =
-      window.location.host + window.location.pathname + "?" + params.toString();
+      window.location.host + window.location.pathname + "#" + params.toString();
     return url;
   }
 

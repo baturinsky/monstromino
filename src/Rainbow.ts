@@ -6,7 +6,7 @@ export default class Rainbow extends Game {
   color:number;
 
   get statsOrder(){
-    return ["color"]
+    return []
   }
 
   get colorsList() {
@@ -21,11 +21,11 @@ export default class Rainbow extends Game {
     return weightedRandom([1, 0, 1, 1, 1, 1, 1], this.rni);
   }
 
-  stateExtraFields() {
+  /*stateExtraFields() {
     return {
       color: this.color,
     };
-  }    
+  }*/   
 
   init(){
     this.color = 0;

@@ -1,0 +1,14 @@
+0.2
+
+Proper help for all modes
+Tooltip delay
+Detailed tooltip
+UI tooltips
+URI path
+Win screen
+Attack rni stability
+Kill animation
+Death line
+Possibility level indication
+Life mode
+Rainbow mode

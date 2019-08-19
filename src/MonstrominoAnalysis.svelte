@@ -1,7 +1,7 @@
 <script>
-  import Battler from "./Battler";
   import {
-    settings
+    settings,
+    game
   } from "./store.js";
   import { bigNum } from "./Util"
 
@@ -15,7 +15,7 @@
 </script>
 
 <div class="detached-title">
-  {#each Battler.statsOrder as field, i}
+  {#each $game.statsOrder as field, i}
     {@html i == 0 ? '' : '&nbsp;'}
     <span class="field-name">{abridgedAnalysis ? '' : field}</span>
     <span class={fg(field)}>{bigNum(target.battler[field])}</span>

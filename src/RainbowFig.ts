@@ -19,11 +19,11 @@ export default class MonstrominoFig extends Fig {
     return this.game as Rainbow;
   }
 
-  get possible() {
+  get possibility() {
     return (
       this.reached &&
       !this.resolved &&
       (this.rainbow.color<=1 || this.kind == "dream" || this.rainbow.colorsList.indexOf(this.kind) == this.rainbow.color)
-    );
+    )?1:0;
   }
 }

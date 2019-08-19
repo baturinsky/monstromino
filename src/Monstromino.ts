@@ -45,7 +45,7 @@ export default class Monstromino extends Game {
   }
 
   stateExtraFields() {
-    return this.prota;
+    return {str:this.prota.str, vit:this.prota.vit, def:this.prota.def, spd:this.prota.spd};
   }    
 
   get dreamFrequency() {

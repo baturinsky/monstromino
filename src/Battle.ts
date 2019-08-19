@@ -1,10 +1,13 @@
 import Battler from "./Battler";
 
+const maxCombatLength = 20;
+
 export default class Battle {
   time = 0;
   log = [];
   hp = [];
   outcome: string;
+  success: number;
 
   constructor(public bats: Battler[]) {
     for (let b of bats) {
@@ -32,13 +35,27 @@ export default class Battle {
     if (bats[0].hp <= 0) this.outcome = "lose";
     else if (bats[1].hp <= 0) this.outcome = "win";
     else this.outcome = "draw";
+
+    if (this.outcome == "win") {
+      this.success = 1;
+    } else {
+      this.success = Math.max(
+        0.1,
+        Math.min(
+          (1 - bats[1].hp / bats[1].vit),
+          0.9
+        )
+      );
+    }
   }
 
-  get enemy(){
+  get enemy() {
     return this.bats[1];
   }
 
   over() {
-    return this.log.length >= 20 || !this.bats.every(b => b.hp > 0);
+    return (
+      this.log.length >= maxCombatLength || !this.bats.every(b => b.hp > 0)
+    );
   }
 }

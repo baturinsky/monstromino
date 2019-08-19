@@ -8,75 +8,86 @@ class LifeState {
   family: number;
   career: number;
 
-  power(kind?: string) {
+  power(kind?: string): number {
     return (
-      Object.values(this).reduce((a, b) => a + b) + (kind ? this[kind] * 2 : 0)
+      (Object.values(this).reduce((a, b) => a + b) +
+      (kind ? this[kind] * 2 : 0)) / 3
     );
   }
 }
 
-const statsBase={
+const statsBase = {
   self: 10,
   friends: 10,
   family: 10,
   career: 10
-}
+};
 
 class LifeFig extends Fig {
-  state: LifeState;
+  stats: LifeState;
 
   reset() {
     super.reset();
-    this.state = new LifeState();
+    this.stats = new LifeState();
   }
 
   loot() {
-    if(!(this.kind in this.state))
-      return;
-    this.game.score += this.score - 3;
+    this.game.score += this.score - this.scorePerTurn;
+
+    if (!(this.kind in this.stats)) return;
     this.life.prota[this.kind] += Math.floor(
-      this.state[this.kind] / 10
+      this.stats[this.kind] * this.lootRatio
     );
+  }
+
+  get lootRatio() {
+    return 0.07;
+  }
+
+  get scorePerDream() {
+    return 100;
   }
 
   get life() {
     return this.game as Life;
   }
 
-  get possible() {
-    
-    if (!this.reached || this.resolved) return false;
+  get possibility() {
+    if (!this.reached || this.resolved || this.wasted) return 0;
 
-    if(!this.state)
-      this.updateAnalysis();
+    if (!this.stats) this.updateAnalysis();
+
+    let sufficiency = 0;
 
     if (this.dream) {
-      return Object.keys(this.state).every(k => {
-        return this.state[k] <= this.life.prota[k]
+      let sufficiencyEach = Object.keys(this.stats).map(k => {
+        return this.life.prota[k] / this.stats[k];
       });
+      sufficiency = sufficiencyEach.reduce((a, b) => (a < b ? a : b));
     } else {
-      let thisPower = this.state.power(this.kind);
+      let thisPower = this.stats[this.kind];
       let protaPower = this.life.prota.power(this.kind);
-      return protaPower >= thisPower;
+      sufficiency = protaPower / thisPower;
     }
+    return sufficiency >= 1 ? 1 : sufficiency;
   }
 
-  get outcome(){
-    return this.possible?"possible":"impossible";
+  get outcome() {
+    return this.possible ? "possible" : "impossible";
   }
 
   updateAnalysis() {
-
     if (this.resolved || this.kind == "none") {
       return this;
     }
 
     let ownMultiplier = 4;
     let neighborMultiplier = 2;
-    let dreamMultiplier = 3;
+    let dreamMultiplier = 4;
+    let dreamNeighborMultiplier = 2;
     let baseBonus = 5;
     let finalMultiplier = 0.015;
-    let depthScaling = 0.035
+    let depthScaling = 0.03;
 
     let bonuses = { self: 0, friends: 0, family: 0, career: 0, dream: 0 };
 
@@ -84,7 +95,7 @@ class LifeFig extends Fig {
 
     for (let n of this.neighbors) {
       if (!n.resolved) {
-        bonuses[n.kind] += n.cells.length * neighborMultiplier;
+        bonuses[n.kind] += n.cells.length * neighborMultiplier * (this.dream||n.dream?dreamNeighborMultiplier:1);
       }
     }
 
@@ -93,15 +104,40 @@ class LifeFig extends Fig {
     }
 
     bonuses.dream = 0;
+    let statsHaving = this.dream ? Object.keys(statsBase) : [this.kind];
 
-    for (let stat in statsBase) {
-      this.state[stat] = Math.floor(
+    for (let stat of statsHaving) {
+      this.stats[stat] = Math.floor(
         statsBase[stat] *
           (baseBonus + bonuses[stat]) *
           Math.pow(10, 1 + this.depth * depthScaling) *
           finalMultiplier
       );
-    }  
+    }
+  }
+
+  get xp() {
+    if (this.kind == "dream") return null;
+    return [this.kind, Math.floor(this.stats[this.kind] * this.lootRatio)];
+  }
+
+  get color() {
+    if (this.dream) {
+      this.updateAnalysis();
+
+      let worstStat = Object.keys(this.stats).reduce(
+        ([min, minKey], key) => {
+          let ratio = this.life.prota[key] / this.stats[key];
+          if (ratio < min) return [ratio, key];
+          else return [min, minKey];
+        },
+        [1, 0]
+      );
+
+      if (worstStat[0] >= 1) return this.game.colors("none");
+      else return this.game.colors(worstStat[1]);
+    }
+    return this.game.colors(this.kind);
   }
 }
 
@@ -152,6 +188,6 @@ export default class Life extends Game {
   }
 
   get dreamFrequency() {
-    return 400;
+    return 300;
   }
 }
