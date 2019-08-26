@@ -37,10 +37,10 @@ export default class Monstromino extends Game {
 
   init(){
     this.prota = new Battler().stats({
-      str: 25,
+      str: 40,
       vit: 40,
-      def: 10,
-      spd: 30
+      def: 40,
+      spd: 40
     });
   }
 

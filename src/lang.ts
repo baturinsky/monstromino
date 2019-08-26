@@ -1,9 +1,7 @@
 let lang = {
   what_files:`
-<ol type="I">
-  <li>After each your move game is saved to the AUTO slot. 
-  <li>You can save in new slot, load any save or delete them with X.
-</ol>  
+  After each your move game is saved to the AUTO slot. <br/>
+  You can save in new slot, load any save or delete them with X.
   `,
   tip_str: `Each attack deals random damage between 0% and 200% of this value (before Defense applied).`,
   tip_vit: `Amount of HP when combat starts.`,

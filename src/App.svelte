@@ -8,6 +8,9 @@
     conf,
     board,
     what,
+    logs,
+    chrome,
+    helpSeen,
     settings
   } from "./store.js";
   import Game from "./Game";
@@ -26,6 +29,26 @@
   let page = "board";
   let hovered;
   let mousePosition = [0, 0];
+  let logDiv;
+  let whatPage;
+
+  $: {
+    if (page == "files") whatPage = "files";
+    else if (page == "board") whatPage = $game.mode;
+    else whatPage = undefined;
+
+    if (!$helpSeen[whatPage]) {
+      $what = true;
+    }
+  }
+
+  what.subscribe(v => {
+    if (v) {
+      let hs = $helpSeen;
+      hs[whatPage] = true;
+      $helpSeen = hs;
+    }
+  });
 
   let modes = {
     monstromino: {
@@ -60,7 +83,6 @@
     return "bg-" + $game.colors(c);
   }
 
-  let chrome = navigator.userAgent.search("Chrome") >= 0;
   let dream = "dream" + (chrome ? " dream-animation" : "");
   let useTransition = chrome ? " transition" : "";
 
@@ -69,6 +91,36 @@
   conf.subscribe(v => {
     Object.assign(custom, v);
     delete custom.goal;
+  });
+
+  logs.subscribe(v => {
+    console.log(logDiv);
+    console.log($logs);
+    if (logDiv)
+      logDiv.animate(
+        [
+          {
+            opacity: 0,
+            display: "none",
+            offset: 0
+          },
+          {
+            opacity: 1,
+            display: "flex",
+            offset: 0.1
+          },
+          {
+            opacity: 1,
+            display: "flex",
+            offset: 0.9
+          },
+          {
+            opacity: 0,
+            display: "none"
+          }
+        ],
+        { duration: 5000, easing: "ease-out", fill: "forwards" }
+      );
   });
 
   function clickCell(e) {
@@ -280,7 +332,6 @@
   }
 
   document.onkeydown = e => {
-    console.log(e)
     switch (e.code) {
       case "KeyS":
         if (page == "settings") toPage("board");
@@ -417,11 +468,7 @@
 </div>
 
 <div class="bottom panel card {$what ? '' : 'panel-hidden-s'}">
-  {#if page == 'files'}
-    {@html lang.what_files}
-  {:else}
-    <What {...{ fg, bg, dream }} />
-  {/if}
+  <What {...{ fg, bg, dream }} bind:whatPage />
   <div />
   <button on:click={e => ($what = false)}>Ok, got it</button>
 </div>
@@ -542,4 +589,10 @@
 
 <div class="se-corner">
   <button class="important" on:click={toggleWhat}>Help</button>
+</div>
+
+<div class="log" bind:this={logDiv}>
+  {#each $logs as line, i}
+    <div>{line}</div>
+  {/each}
 </div>

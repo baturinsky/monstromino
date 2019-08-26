@@ -14,10 +14,18 @@ export const game = writable(null as Game);
 export let state: Writable<any>;
 export let stateRef = writable({});
 export let settings = writable({});
+export let chrome = navigator.userAgent.search("Chrome") >= 0;
+export let logs = writable([] as string[]);
+export let helpSeen = writable({});
+
+export function log(text: string) {
+  logs.update(v => v.slice(-5).concat([text]));
+  console.log(text);
+}
 
 export function setGameState(o: any) {
   if (!state) {
-    state = tweened(o, tween) as any;
+    state = chrome ? (tweened(o, tween) as any) : writable(o);
     stateRef.set(state);
   } else state.set(o);
 }
@@ -26,6 +34,9 @@ export const what = writable(true);
 
 what.set(localStorage.what == "no" ? false : true);
 what.subscribe(v => localStorage.setItem("what", v ? "yes" : "no"));
+
+helpSeen.set(localStorage.helpSeen ? JSON.parse(localStorage.helpSeen) : {});
+helpSeen.subscribe(v => localStorage.setItem("helpSeen", JSON.stringify(v)));
 
 settings.set(
   localStorage.settings
@@ -36,8 +47,7 @@ settings.subscribe(v => localStorage.setItem("settings", JSON.stringify(v)));
 
 let oldMode;
 game.subscribe(v => {
-  if(oldMode && oldMode != v)
-    location.reload();
+  if (oldMode && oldMode != v) location.reload();
   oldMode = v;
 });
 
@@ -57,9 +67,9 @@ export function updateSaves() {
       let n = Number(k.substr(savePrefixLength));
       let description = "?";
       try {
-        description = `${data.conf.mode} t${data.turns.length} ${data.conf.width}x${
-          data.conf.height
-        } #${data.conf.seed} ${data.date.toLocaleString()}`;
+        description = `${data.conf.mode} t${data.turns.length} ${
+          data.conf.width
+        }x${data.conf.height} #${data.conf.seed} ${data.date.toLocaleString()}`;
       } catch (e) {
         console.error(e);
       }

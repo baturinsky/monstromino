@@ -1,26 +1,27 @@
 <script>
-  import { saves, game, updateSaves } from "./store.js";
+  import { saves, game, updateSaves, log } from "./store.js";
   import lang from "./lang";
 
   updateSaves();
 
   function deleteSave(id) {
-    console.log("del", id);
+    log(`Deleted ${id}`);
     $game.erase(id);
     updateSaves();
   }
 
   function loadSave(id) {
-    console.log("load", id);
+    log(`Loaded from ${id}`);
     $game.load(id);
     goTo($game.conf);
   }
 
   function newSave(id) {
-    $game.save(id);
+    id = $game.save(id);
     updateSaves();
-    console.log("new", id);
+    log(`Saved as ${id}`);
   }
+
   window.onkeydown = e => {
     switch (e.code) {
       case "KeyQ":

@@ -3,6 +3,11 @@
   export let bg;
   export let fg;
   export let dream;
+  export let whatPage;
+
+$:{
+console.log(whatPage)
+}  
 </script>
 
 <style>
@@ -13,9 +18,24 @@
   }
 </style>
 
-<table class="what">
+{#if whatPage == 'files'}
+<div style="text-align:center">
+  <div>Here you can save in a new slot, load any save or delete them (with X).</div>
+  <div>After each your move game is saved to the AUTO slot.</div>
+  <div>At any moment, you can quick save to a new slot with "Q" button.</div>
+</div>
+{/if}
 
-  {#if $game.mode == 'monstromino'}
+<table class="what">
+  {#if whatPage != 'files'}
+  <tr>
+  <td colspan="2" style="text-align:center; font-weight: normal;">
+      <b>{whatPage}</b> mode
+    </td>
+  </tr>
+  {/if}
+    
+  {#if whatPage == 'monstromino'}
     <tr>
       <td>Objective</td>
       <td>
@@ -29,18 +49,20 @@
       <td>Method</td>
       <td>
         Each colored figure is a monster. Mouse over it to see it's stats and
-        how would combat go if you attack it. If you can win, you can do it by
-        clicking it. You will gain some of it's stats, score, and gain access to
-        monsters behind it.
+        how would combat go if you attack it. Click to attack. If you win, you
+        will gain some of victim's stats, score, and gain access to monsters
+        behind it.
       </td>
     </tr>
     <tr>
       <td>Tips</td>
       <td>
         Figure's stats depend on their depth, size, color and neighbors.
-        <br />Mouse over your stats and score at the top for details of what each of
+        <br />
+        Mouse over your stats and score at the top for details of what each of
         them do.
-        <br />Combat is a draw if it's not over after 20 attacks
+        <br />
+        Combat is a draw if it's not over after 20 attacks
       </td>
     </tr>
     <tr>
@@ -69,7 +91,7 @@
       </td>
     </tr>
   {/if}
-  {#if $game.mode == 'rainbow'}
+  {#if whatPage == 'rainbow'}
     <tr>
       <td>Objective</td>
       <td>
@@ -88,7 +110,7 @@
       </td>
     </tr>
   {/if}
-  {#if $game.mode == 'life'}
+  {#if whatPage == 'life'}
     <tr>
       <td>Objective</td>
       <td>

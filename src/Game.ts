@@ -43,15 +43,21 @@ class Game {
   }
 
   load(src: string | any): boolean {
-    if (typeof src == "string") {
-      let data = Game.loadRaw(src);
-      if (data) {
-        this.deserialize(data);
-        return true;
+    try {
+      if (typeof src == "string") {
+        let data = Game.loadRaw(src);
+        if (data) {
+          this.deserialize(data);
+          return true;
+        }
+        return false;
+      } else {
+        this.deserialize(src);
       }
-      return false;
-    } else {
-      this.deserialize(src);
+    } catch {
+      console.log("corrupted save")
+      this.wipeAuto();
+      location.reload();
     }
   }
 
@@ -70,6 +76,7 @@ class Game {
       path = store.nextSlot();
     }
     localStorage.setItem(path, JSON.stringify(this.serialized()));
+    return path;
   }
 
   erase(path: string) {
@@ -188,7 +195,7 @@ class Game {
     this.init();
 
     this.turns = turns;
-    this.score = 0;    
+    this.score = 0;
     this.dreamsTotal = 0;
     this.haveMoves = true;
 
@@ -236,10 +243,10 @@ class Game {
   }
 
   updateResolutions() {
-    this.haveMoves = false
+    this.haveMoves = false;
     for (let f of this.figs) {
       if (f.reached && !f.resolved) {
-        if(f.possible){
+        if (f.possible) {
           this.haveMoves = true;
         }
         f.updateAnalysis();
@@ -290,7 +297,9 @@ class Game {
     store.conf.set(this.conf);
     store.board.set(this.board);
 
-    this.complete = this.dreamsResolved + this.dreamsWasted == this.dreamsTotal || !this.haveMoves;
+    this.complete =
+      this.dreamsResolved + this.dreamsWasted == this.dreamsTotal ||
+      !this.haveMoves;
 
     let state = {
       turns: this.turns.length,
@@ -298,27 +307,29 @@ class Game {
       wasteDepth: this.wasteDepth,
       turnsToWaste: this.turnsToWaste,
       complete: this.complete ? 1 : 0,
-      haveMoves: this.haveMoves ? 1: 0 
+      haveMoves: this.haveMoves ? 1 : 0
     };
 
     Object.assign(state, this.stateExtraFields());
-        
+
     store.setGameState(state);
 
     store.debrief.set(this.debrief);
   }
 
   get wasteDepth() {
-    return (
-      Math.max(0,Math.floor((this.turns.length - this.wastedDelay) / this.turnsPerWastedLine))
+    return Math.max(
+      0,
+      Math.floor(
+        (this.turns.length - this.wastedDelay) / this.turnsPerWastedLine
+      )
     );
   }
 
-  get turnsToWaste(){
+  get turnsToWaste() {
     let delayed = this.turns.length - this.wastedDelay;
-    if(delayed < 0)
-      return -delayed;
-    return this.turnsPerWastedLine - delayed % this.turnsPerWastedLine;
+    if (delayed < 0) return -delayed;
+    return this.turnsPerWastedLine - (delayed % this.turnsPerWastedLine);
   }
 
   wasted(i: number) {
