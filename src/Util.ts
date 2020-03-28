@@ -20,10 +20,11 @@ export let bigNumLetters = " K M B t q Q s S o n d U D T Qt Qd Sd St O N v c".sp
 
 export function bigNum(n) {
   if(isNaN(+n))
-    return n;
+    return "-";
   let i;
   for (i = 0; Math.abs(n) > 100000 && i < bigNumLetters.length; i++) n /= 1000;
-  return Math.round(n) + bigNumLetters[i];
+  let res = Math.round(n) + bigNumLetters[i]; 
+  return res;
 }
 
 

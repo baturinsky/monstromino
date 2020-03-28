@@ -17,6 +17,7 @@
   import { createGame } from "./Main";
   import lang from "./lang";
   import What from "./What.svelte";
+  import Custom from "./Custom.svelte";
   import Files from "./Files.svelte";
   import MonstrominoAnalysis from "./MonstrominoAnalysis.svelte";
   import LifeAnalysis from "./LifeAnalysis.svelte";
@@ -420,12 +421,13 @@
 {/if}
 
 <div class="header">
-  <div class="menu">
+  <div class="menu">  
     <button>menu</button>
     <div class="dropdown">
       <button on:click={e => toPage('board')}>Board</button>
       <button on:click={e => toPage('files')}>Files</button>
       <button on:click={e => toPage('settings')}>Settings</button>
+      <button on:click={toggleWhat}>Help</button>
     </div>
   </div>
   <div class="spacer" />
@@ -469,8 +471,7 @@
 
 <div class="bottom panel card {$what ? '' : 'panel-hidden-s'}">
   <What {...{ fg, bg, dream }} bind:whatPage />
-  <div />
-  <button on:click={e => ($what = false)}>Ok, got it</button>
+  <button class="explicit" on:click={e => ($what = false)}>Ok, got it</button>
 </div>
 
 <div
@@ -521,6 +522,7 @@
 
 <div class="main">
   {#if page == 'board'}
+    <Custom {...{ custom, playCustom }} command="Restart" />
     <div
       class="board-table"
       style="width:{20 * $conf.width}px"
@@ -553,22 +555,7 @@
           style={cellStyle(fig)} />
       {/each}
     </div>
-    <div class="board-conf">
-      Mode
-      <select bind:value={custom.mode}>
-        {#each ['monstromino', 'rainbow', 'life'] as question}
-          <option value={question}>{question}</option>
-        {/each}
-      </select>
-      Seed
-      <input bind:value={custom.seed} />
-      &nbsp;Width
-      <input bind:value={custom.width} />
-      &nbsp;Height
-      <input bind:value={custom.height} />
-      &nbsp;
-      <button on:click={playCustom}>play</button>
-    </div>
+    <Custom {...{ custom, playCustom }} />
   {/if}
   {#if page == 'files'}
     <Files />
